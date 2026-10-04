@@ -28,3 +28,12 @@ LinkBase is a freshly scaffolded `create-next-app` project — only `src/app/{la
 - **Dark mode is `prefers-color-scheme` only** — it redefines `--background`/`--foreground` on `:root`. There is no `dark:` class strategy or theme toggle; adding one means changing that mechanism in `globals.css`.
 - **Fonts** are Geist / Geist Mono loaded through `next/font/google` in the root layout and exposed as `--font-geist-sans` / `--font-geist-mono`. Note `globals.css` currently hardcodes `body { font-family: Arial... }`, overriding the `--font-sans` token — fix that there if typography looks wrong.
 - TypeScript is `strict`, `noEmit`, bundler module resolution.
+
+## Doc Convention
+
+Whenever a new file is created in `/docs`, add it to the Project Docs section below with one line on what it covers and when to read it.
+
+### Project Docs
+
+- `docs/design-system.md` — the design foundations: colour tokens (cream/ink/ember/iris + semantic aliases), typography scales, spacing, radius, borders, shadows, motion, the profile-template palette, and a ready-to-paste Tailwind v4 `@theme` block. Read it before writing any styling, adding a token, or setting up `globals.css`/fonts.
+- `docs/ui.md` — the component and layout spec: every component's props, variants, sizes and states (Button, ClaimInput, TextField, Toggle, Chip, NavBar, cards, profile and editor pieces), the page layouts (marketing, signup, editor, public profile), content conventions, and accessibility notes. Read it before building or changing a component or page layout.
