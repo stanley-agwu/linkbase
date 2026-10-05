@@ -1,6 +1,6 @@
 # Linkbase — Architecture
 
-How the app is laid out and the rules for where code goes. Read this before adding a file, a route, or a data-access path. Styling decisions live in `design-system.md`; component props and page layouts live in `ui.md`.
+How the app is laid out and the rules for where code goes. Read this before adding a file, a route, or a data-access path. Styling decisions live in `design-system.md`; component props and page layouts live in `ui.md`; the data layer is detailed in `database.md` and access control in `auth.md`.
 
 Anything the project hasn't decided yet is marked **TBD** — don't invent it, ask.
 
@@ -29,11 +29,11 @@ Everything else stays on the server: data reads, secrets, and markup that never 
 
 ### Data fetching
 
-Read data directly in the Server Component that renders it, through `lib/db` or a feature's `queries.ts`. No client-side fetching layer, no `useEffect` fetches, no API route in front of our own database.
+Read data directly in the Server Component that renders it, through `lib/db`. No client-side fetching layer, no `useEffect` fetches, no API route in front of our own database. Scoping, caching, tags, and invalidation are specified in `data-fetching.md`.
 
 Wrap slow, request-time reads in `<Suspense>` with a fallback so the shell streams. Keep the data read next to where it's used — co-locating the read with the component is cheaper than lifting it and threading props.
 
-Caching: `cacheComponents` is **not** enabled in `next.config.ts` yet. If we turn it on, cached work is marked with `"use cache"` plus an explicit `cacheLife(...)` profile, and uncached request-time work goes behind `<Suspense>`. Until then don't sprinkle `"use cache"` — it changes rendering semantics project-wide and is a deliberate decision, not a per-file one.
+Caching: `cacheComponents` is **not** enabled in `next.config.ts` yet. If we turn it on, cached work is marked with `"use cache"` plus an explicit `cacheLife(...)` profile, and uncached request-time work goes behind `<Suspense>`. Until then don't sprinkle `"use cache"` — it changes rendering semantics project-wide and is a deliberate decision, not a per-file one. Database reads are cached with `unstable_cache` in the meantime (`data-fetching.md` §3).
 
 ---
 
@@ -46,11 +46,12 @@ src/
   app/
     (marketing)/            # route group — landing, not in the URL
       page.tsx
-    (app)/                  # authenticated shell
+    (dashboard)/            # authenticated shell — protected by default, see auth.md
       editor/
         page.tsx
-    [username]/             # public profile
-      page.tsx
+    user/
+      [handle]/             # public profile — open to everyone
+        page.tsx
     layout.tsx              # root layout: fonts, <html>, <body>
     globals.css
   components/
@@ -76,6 +77,10 @@ src/
       index.ts
     types/                  # shared types
       index.ts
+    validation/             # Zod schemas + ActionResult — client-safe
+      index.ts
+    logger.ts               # logError — server-only
+  instrumentation.ts        # onRequestError — the server error log sink
 ```
 
 ### `components/ui` — primitives
@@ -96,13 +101,14 @@ A component used by exactly one route may be co-located in that route segment un
 
 Each concern gets its own folder:
 
-| Folder | Holds | Notes |
-|---|---|---|
-| `lib/db` | the database client and the queries that use it | server-only; one shared client instance, never instantiated per request |
-| `lib/auth` | session reads, the current-user helper, authorisation checks | server-only; the single source of truth for "who is this request" |
-| `lib/types` | types shared across features | types only — no runtime code, no values |
+| Folder           | Holds                                                             | Notes                                                                                     |
+| ---------------- | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `lib/db`         | the database client and the queries that use it                   | server-only; one shared client instance, never instantiated per request                   |
+| `lib/auth`       | session reads, the current-user helper, authorisation checks      | server-only; the single source of truth for "who is this request"                         |
+| `lib/types`      | types shared across features                                      | types only — no runtime code, no values                                                   |
+| `lib/validation` | Zod schemas for every action's input, and the `ActionResult` type | client-safe — imports nothing from `lib/db` or `lib/auth` (`errors-and-validation.md` §2) |
 
-Anything else shared and non-UI (formatters, slug validation, constants) goes in a named file at `lib/`'s root, e.g. `lib/format-url.ts`. Don't create a `lib/utils.ts` dumping ground.
+Anything else shared and non-UI (formatters, constants) goes in a named file at `lib/`'s root, e.g. `lib/format-url.ts` or `lib/logger.ts`. Don't create a `lib/utils.ts` dumping ground.
 
 Import direction: `app` → `components` → `lib`. `lib` imports nothing from `components` or `app`.
 
@@ -118,8 +124,8 @@ Rules:
 
 - **Verb-first names**: `createProfile`, `updateLinkOrder`, `deleteLink`, `claimUsername`, `publishProfile`. Not `profileCreate`, not `handleSubmit`, not `linkAction`.
 - **Every action re-checks auth.** Actions are reachable by direct POST, not only through our UI. Start every one with the `lib/auth` session check and verify the caller owns the row it's touching — the client being hidden is not authorisation.
-- **Validate input.** `FormData` values are untrusted strings. Parse and validate before they reach `lib/db`.
-- **Return serialisable results.** Plain objects for form state; throw for genuinely exceptional cases.
+- **Validate input.** `FormData` values are untrusted strings. `safeParse` them with a Zod schema from `lib/validation` before they reach `lib/db`.
+- **Return an `ActionResult`** for expected failures (invalid field, not found, handle taken) — never throw them. Throw only for genuinely exceptional cases, and let `error.tsx` catch them. Both are specified in `errors-and-validation.md`.
 - **Refresh the UI explicitly** after a mutation — `revalidatePath` / `revalidateTag` for cached data, `refresh()` from `next/cache` for the current route, `redirect` when the user should move on. A mutation that leaves stale UI on screen is a bug.
 - Actions may be passed to Client Components as props, which is how a client leaf mutates without importing server-only modules.
 
@@ -129,15 +135,15 @@ Route handlers (`app/.../route.ts`) are for things that genuinely need an HTTP e
 
 ## 4. Naming
 
-| Thing | Convention | Example |
-|---|---|---|
-| Files and folders | kebab-case | `claim-input.tsx`, `lib/format-url.ts`, `components/editor/` |
-| Components | PascalCase | `ClaimInput`, `ProfileLink`, `ShareBar` |
-| Server Actions | verb-first camelCase | `createProfile`, `deleteLink` |
-| Functions, variables | camelCase | `getCurrentUser`, `linkCount` |
-| Types and interfaces | PascalCase | `Profile`, `LinkRecord` |
-| Constants | SCREAMING_SNAKE_CASE | `MAX_LINKS` |
-| Route folders | Next conventions, lowercase | `[username]`, `(marketing)`, `_components` |
+| Thing                | Convention                  | Example                                                      |
+| -------------------- | --------------------------- | ------------------------------------------------------------ |
+| Files and folders    | kebab-case                  | `claim-input.tsx`, `lib/format-url.ts`, `components/editor/` |
+| Components           | PascalCase                  | `ClaimInput`, `ProfileLink`, `ShareBar`                      |
+| Server Actions       | verb-first camelCase        | `createProfile`, `deleteLink`                                |
+| Functions, variables | camelCase                   | `getCurrentUser`, `linkCount`                                |
+| Types and interfaces | PascalCase                  | `Profile`, `LinkRecord`                                      |
+| Constants            | SCREAMING_SNAKE_CASE        | `MAX_LINKS`                                                  |
+| Route folders        | Next conventions, lowercase | `[username]`, `(marketing)`, `_components`                   |
 
 So the file name and the export differ by case, deliberately: `components/ui/claim-input.tsx` exports `ClaimInput`.
 
@@ -152,15 +158,15 @@ Other conventions:
 
 ## 5. Where does this go?
 
-| You're adding… | Put it in |
-|---|---|
-| A page or route | `app/<segment>/page.tsx` |
-| A generic, reusable visual element | `components/ui/<name>.tsx` |
-| Something that knows about profiles/links | `components/<feature>/<name>.tsx` |
-| Something only one route uses | `app/<segment>/_components/<name>.tsx` |
-| A read query | `lib/db` (or the feature's `queries.ts`) |
-| A write | a Server Action, verb-first, auth-checked |
-| A type two features share | `lib/types` |
-| A session or permission check | `lib/auth` |
-| A webhook or OAuth callback | `app/<segment>/route.ts` |
-| A design token | `app/globals.css` (see `design-system.md`) |
+| You're adding…                            | Put it in                                  |
+| ----------------------------------------- | ------------------------------------------ |
+| A page or route                           | `app/<segment>/page.tsx`                   |
+| A generic, reusable visual element        | `components/ui/<name>.tsx`                 |
+| Something that knows about profiles/links | `components/<feature>/<name>.tsx`          |
+| Something only one route uses             | `app/<segment>/_components/<name>.tsx`     |
+| A read query                              | `lib/db` (or the feature's `queries.ts`)   |
+| A write                                   | a Server Action, verb-first, auth-checked  |
+| A type two features share                 | `lib/types`                                |
+| A session or permission check             | `lib/auth`                                 |
+| A webhook or OAuth callback               | `app/<segment>/route.ts`                   |
+| A design token                            | `app/globals.css` (see `design-system.md`) |

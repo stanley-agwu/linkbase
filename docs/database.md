@@ -12,11 +12,13 @@ Structure and import rules come from `architecture.md` — this doc is the `lib/
 
 One library, three jobs, so none of them get reimplemented elsewhere:
 
-| Job | Where it lives | Not |
-|---|---|---|
-| Schema | `lib/db/models/*.ts` | ad-hoc object shapes at call sites |
-| Validation | the schema (`required`, `enum`, `match`, `maxlength`, custom validators) | hand-rolled checks sprinkled through actions |
-| Connection pooling | the driver, via one cached connection | a client per request, or a pool per module |
+| Job                | Where it lives                                                                                     | Not                                          |
+| ------------------ | -------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| Schema             | `lib/db/models/*.ts`                                                                               | ad-hoc object shapes at call sites           |
+| Validation         | the schema (`required`, `enum`, `match`, `maxlength`, custom validators) — the backstop behind Zod | hand-rolled checks sprinkled through actions |
+| Connection pooling | the driver, via one cached connection                                                              | a client per request, or a pool per module   |
+
+Mongoose validation is the last line, not the first. User input is validated with Zod at the Server Action boundary before it reaches a query, and those schemas produce every user-facing message (`errors-and-validation.md` §2). The Mongoose validators guard the data against code paths that skipped that boundary, so their limits must match the Zod schema for the same field.
 
 Server Actions and Server Components call query functions. They never construct a client, never open a connection, and never build raw driver queries.
 
@@ -88,8 +90,8 @@ export const Link = (mongoose.models.Link ??
 
 ### Environment
 
-| Variable | Notes |
-|---|---|
+| Variable      | Notes                                                                                                |
+| ------------- | ---------------------------------------------------------------------------------------------------- |
 | `MONGODB_URI` | full connection string including the database name. Local dev value in `.env.local`, never committed |
 
 Hosting target and whether dev runs against a local `mongod` or a shared Atlas cluster: **TBD**.
@@ -100,21 +102,26 @@ Hosting target and whether dev runs against a local `mongod` or a shared Atlas c
 
 ```
 src/lib/db/
-  index.ts        # public surface — the only thing features import
-  connect.ts      # the cached connection helper
+  index.ts          # public surface — the only thing features import
+  connect.ts        # the cached connection helper
+  cache-tags.ts     # cacheTags — every cache tag name, built in one place
   models/
     user.ts
     profile.ts
     link.ts
     click.ts
   queries/
-    profile.ts    # getProfileByUserId, getPublicProfileByHandle, …
-    link.ts       # listLinks, countClicks, …
+    profile.ts      # getProfileByUserId, claimHandle, updateProfile, …
+    link.ts         # listLinks, updateLink, countClicks, …
+    public-page.ts  # getPublicPage — the unscoped, cached public-profile read
 ```
 
-`lib/db/index.ts` re-exports the query functions, the models, and the document types. Features import from `@/lib/db` — not from `@/lib/db/connect` or a model file directly, so the connection helper stays an implementation detail.
+`lib/db/index.ts` re-exports the query functions, the models, and the document types. Features import from `@/lib/db` — not from `@/lib/db/connect`, `@/lib/db/cache-tags`, or a model file directly, so the connection helper and the tag names stay implementation details.
 
-Queries and mutations both live in `lib/db/queries` as plain async functions. Server Actions (`"use server"`) sit a layer above, in the feature, and call them — see `architecture.md` §3. Keeping the `"use server"` directive out of `lib/db` means nothing here is accidentally exposed as a POST endpoint.
+- **`cache-tags.ts`** is the only place a cache tag string is written. The cached read that sets a tag and every write that clears it both build it from `cacheTags`, so they can't drift apart. It isn't re-exported — nothing outside `lib/db` sets or clears tags (`data-fetching.md` §3.3).
+- **`queries/public-page.ts`** holds the one read that isn't scoped to a user id (§5), kept in its own file so it's easy to audit. It returns the profile and its visible links in one call, projected and cached with `unstable_cache` under the handle's tag (`data-fetching.md` §3.2).
+
+Queries and mutations both live in `lib/db/queries` as plain async functions. A mutation that changes what a cached read returns clears that read's tag itself, right after the write, so no caller can do one without the other (`data-fetching.md` §3.4). Server Actions (`"use server"`) sit a layer above, in the feature, and call them — see `architecture.md` §3. Keeping the `"use server"` directive out of `lib/db` means nothing here is accidentally exposed as a POST endpoint.
 
 ---
 
@@ -122,14 +129,14 @@ Queries and mutations both live in `lib/db/queries` as plain async functions. Se
 
 Every schema, without exception:
 
-| Convention | Why |
-|---|---|
-| `strict: true` | an unknown key is dropped rather than silently persisted, so a typo in an action can't invent a field |
-| `strictQuery: true` | an unknown key in a *filter* throws instead of being ignored — a dropped filter clause is how a query silently stops being scoped |
-| `timestamps: true` | `createdAt` / `updatedAt` on everything; no hand-maintained date fields |
-| `index` on `userId` | every query filters on it (§5), so every collection that has it indexes it |
-| `index` on `handle` | unique, and the public profile route looks up by it on every request |
-| `versionKey: false` | we don't use optimistic concurrency; `__v` only leaks into serialised output |
+| Convention          | Why                                                                                                                               |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `strict: true`      | an unknown key is dropped rather than silently persisted, so a typo in an action can't invent a field                             |
+| `strictQuery: true` | an unknown key in a _filter_ throws instead of being ignored — a dropped filter clause is how a query silently stops being scoped |
+| `timestamps: true`  | `createdAt` / `updatedAt` on everything; no hand-maintained date fields                                                           |
+| `index` on `userId` | every query filters on it (§5), so every collection that has it indexes it                                                        |
+| `index` on `handle` | unique, and the public profile route looks up by it on every request                                                              |
+| `versionKey: false` | we don't use optimistic concurrency; `__v` only leaks into serialised output                                                      |
 
 `strict: true` is Mongoose's default — it's set explicitly anyway, so the guarantee is visible in the file and survives a future default change. `strictQuery` is **not** the default in Mongoose 8 and has to be set.
 
@@ -189,7 +196,7 @@ export const Profile = (mongoose.models.Profile ??
   mongoose.model<ProfileDoc>("Profile", profileSchema)) as Model<ProfileDoc>;
 ```
 
-`handle` is stored lowercase (`lowercase: true`) and matched against a lowercase-only pattern, so uniqueness is genuinely case-insensitive without a collation index. The reserved-handle list (`app`, `api`, `login`, `admin`, …) is enforced in validation: **TBD** — needs a list before it can be written.
+`handle` is stored lowercase (`lowercase: true`) and matched against a lowercase-only pattern, so uniqueness is genuinely case-insensitive without a collation index. The reserved-handle list (`app`, `api`, `login`, `admin`, …) is enforced in `handleSchema` (`lib/validation`): **TBD** — needs a list before it can be written. The pattern and length here still disagree with `ui.md`'s `ClaimInput` sanitiser — see `errors-and-validation.md` §8.
 
 **`link.ts`** — the rows in the editor: `userId`, `profileId`, `title`, `url`, `visible`, `order`, `clickCount`. Indexes: `userId`, plus compound `{ userId: 1, order: 1 }` for the ordered list read, and `{ profileId: 1, visible: 1, order: 1 }` for the public page.
 
@@ -199,7 +206,7 @@ export const Profile = (mongoose.models.Profile ??
 
 - Declare indexes in the schema, next to the field.
 - `autoIndex` is on by default and fine in development; in production index builds belong in a migration or a deliberate `syncIndexes()` step, not in request-path code. Production `autoIndex` setting: **TBD**.
-- A unique index enforces uniqueness; validation does not. `handle` availability must therefore be handled at *both* ends — check for the nice error message, and catch the duplicate-key error (`code === 11000`) for the race where two signups claim the same handle between the check and the insert. The check alone is not uniqueness.
+- A unique index enforces uniqueness; validation does not. `handle` availability must therefore be handled at _both_ ends — check for the nice error message, and catch the duplicate-key error (`code === 11000`) for the race where two signups claim the same handle between the check and the insert. The check alone is not uniqueness. The catch lives in the query function, which returns `"taken"` rather than throwing, so actions never see a Mongo error code.
 
 ---
 
@@ -241,16 +248,29 @@ The rules that keep it true:
 
 ### The public-profile exception
 
-Public profile pages are read by handle, by visitors with no session:
+Public profile pages are read by handle, by visitors with no session, through `getPublicPage` in `queries/public-page.ts`:
 
 ```ts
-export async function getPublicProfileByHandle(handle: string) {
+async function readPublicPage(handle: string): Promise<PublicPage | null> {
   await connectToDatabase();
-  return Profile.findOne({ handle: handle.toLowerCase(), published: true }).lean();
+
+  const profile = await Profile.findOne({ handle, published: true })
+    .select("handle displayName bio themeId")
+    .lean();
+  if (!profile) return null;
+
+  const links = await Link.find({ profileId: profile._id, visible: true })
+    .sort({ order: 1 })
+    .select("title url")
+    .lean();
+
+  return toPublicPage(profile, links);
 }
 ```
 
-This is the **only** unscoped read, and it's constrained in three ways: it's read-only, it filters on `published: true`, and it must project only the fields the public page renders — never `userId`, never the owner's email, never an unpublished profile. The matching link read is scoped by `profileId` and `visible: true`. Any new unscoped query needs the same treatment and a reason.
+The exported `getPublicPage` wraps this in `unstable_cache` and React `cache()`; the full version is in `data-fetching.md` §3.2. The handle arrives already validated and lowercased by `handleSchema`, so the query doesn't normalise it again.
+
+This is the **only** unscoped read, and it's constrained in three ways: it's read-only, it filters on `published: true`, and it projects only the fields the public page renders — never `userId`, never the owner's email, never an unpublished profile. The link read is scoped by `profileId` and `visible: true`. Because the result is cached and shared by every visitor, a field that slips past the projection is both public and persisted. Any new unscoped query needs the same treatment, a reason, and its own place in `public-page.ts`.
 
 Recording a click is the one unauthenticated **write** (`$inc` on `clickCount`, insert into `click`). It's scoped to the link id, takes no caller-supplied `userId`, and writes nothing else. Rate limiting / bot filtering: **TBD**.
 
@@ -269,12 +289,15 @@ Where to put the mapping: a `toProfile(doc)` / `toLink(doc)` function per model 
 
 ### Error handling
 
-| Case | Handling |
-|---|---|
-| Validation failure | Mongoose `ValidationError` — map to field-level form state, don't leak the raw message |
-| Duplicate key (`code === 11000`) | expected for `handle` and `email`; return a friendly "already taken" |
-| Nothing matched | `null` — the caller decides |
-| Connection failure | let it throw to the nearest `error.tsx` |
+| Case                             | Handling                                                                                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Validation failure               | Mongoose `ValidationError` — input already passed Zod, so the two schemas have drifted. A bug: let it throw, and fix the schema |
+| Duplicate key (`code === 11000`) | expected for `handle` and `email`; caught in the query and returned as an outcome (`"taken"`) the action maps to a field error  |
+| Nothing matched                  | `null` — the caller decides                                                                                                     |
+| `CastError` on a malformed id    | shouldn't happen — ids are validated as ObjectIds first. If it does, it throws                                                  |
+| Connection failure               | let it throw to the nearest `error.tsx`                                                                                         |
+
+Nothing from a Mongoose error — message, path, or code — goes into an action result (`errors-and-validation.md` §7).
 
 Transactions: needed for anything spanning two collections (deleting a link and its clicks, creating a user plus profile at signup). They require a replica set — Atlas has one, a bare local `mongod` does not. Whether dev runs a replica set: **TBD**.
 
