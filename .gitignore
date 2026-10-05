@@ -43,3 +43,6 @@ next-env.d.ts
 # Claude settings
 .claude/settings.local.json
 CLAUDE.local.md
+
+# feature plans written by the plan-feature skill
+/plans/

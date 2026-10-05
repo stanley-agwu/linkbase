@@ -34,6 +34,12 @@ LinkBase is a freshly scaffolded `create-next-app` project — only `src/app/{la
 - **Fonts** are Geist / Geist Mono loaded through `next/font/google` in the root layout and exposed as `--font-geist-sans` / `--font-geist-mono`. Note `globals.css` currently hardcodes `body { font-family: Arial... }`, overriding the `--font-sans` token — fix that there if typography looks wrong.
 - TypeScript is `strict`, `noEmit`, bundler module resolution.
 
+## Live Docs (Context7)
+
+Before writing code that uses Next.js, Mongoose, NextAuth, Zod, or any other library, pull the current docs for it through Context7 first. Do not rely on training data for API signatures, config options, or version-specific behavior — check them against the docs Context7 returns for the version this repo has installed.
+
+If Context7 has no entry for a library, say so before proceeding, so it's clear the code that follows isn't backed by live docs.
+
 ## Doc Convention
 
 Whenever a new file is created in `/docs`, add it to the Project Docs section below with one line on what it covers and when to read it.
