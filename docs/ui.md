@@ -77,7 +77,7 @@ The signature conversion control: `linkbase.me/` prefix + input + `lg` primary b
 
 **Props:** `value`, `onChange`, `onSubmit`, `prefix` (`linkbase.me/`), `placeholder` (`yourname`), `buttonLabel` (`Claim your link`), `message`, `status`, `inverse`.
 
-**Input sanitising:** lowercase, `[a-z0-9._]` only, max 24 chars — applied on change. ⚠ Conflicts with the stored handle rule in `database.md` §4 (`^[a-z0-9][a-z0-9-]*$`, 2–30); **TBD** which wins (`errors-and-validation.md` §8). Whichever does, the sanitiser must agree with `handleSchema` in `lib/validation`.
+**Input sanitising:** lowercase, `[a-z0-9._]` only, max 24 chars — applied on change by `sanitizeHandle` from `lib/validation`, which shares its rule with `handleSchema` (minimum 3 characters, checked on submit). This is the canonical handle rule (`errors-and-validation.md` §8).
 
 **States**
 

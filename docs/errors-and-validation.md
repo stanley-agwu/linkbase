@@ -71,9 +71,9 @@ export const handleSchema = z
   .string({ error: "Choose a handle" })
   .trim()
   .toLowerCase()
-  .min(2, "At least 2 characters")
-  .max(30, "30 characters or fewer")
-  .regex(/^[a-z0-9][a-z0-9-]*$/, "Letters, numbers, and hyphens only");
+  .min(3, "Use at least 3 characters.")
+  .max(24, "Use 24 characters or fewer.")
+  .regex(/^[a-z0-9._]+$/, "Use letters, numbers, dots and underscores only.");
 
 export const urlSchema = z
   .url({
@@ -502,16 +502,16 @@ The client may see three things about a failure: a message **we wrote** (from a 
 
 ---
 
-## 8. Open conflict: the handle rule
+## 8. The handle rule (settled)
 
-`database.md` §4 and `ui.md` §1.3 still disagree on what a valid handle is:
+`database.md` §4 and `ui.md` §1.3 used to disagree on what a valid handle is:
 
 | Source                               | Characters             | Length |
 | ------------------------------------ | ---------------------- | ------ |
 | `database.md` §4 (Mongoose)          | `^[a-z0-9][a-z0-9-]*$` | 2–30   |
 | `ui.md` §1.3 (ClaimInput, on change) | `[a-z0-9._]`           | ≤ 24   |
 
-**TBD** — pick one. `handleSchema`, the Mongoose `match` / `minlength` / `maxlength`, and the `ClaimInput` sanitiser must all agree, and the sanitiser should be derived from `handleSchema` rather than written separately. §2.3 uses the database version as a placeholder.
+**Settled: the `ui.md` rule wins** — lowercase letters, digits, `.` and `_`, 3–24 characters. `handleSchema` in `lib/validation/fields.ts` is the definition; `sanitizeHandle` beside it is the `ClaimInput` sanitiser, built from the same constants; `database.md` §4's Mongoose `match` / `minlength` / `maxlength` were updated to match. Change all three together.
 
 ---
 
@@ -535,7 +535,6 @@ The client may see three things about a failure: a message **we wrote** (from a 
 | -------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | Logging backend: stay on structured `console`, or a logger / service | **TBD** — `lib/logger.ts` is the seam either way                 |
 | Client-side error reporting (errors `onRequestError` can't see)      | **TBD**                                                          |
-| The canonical handle pattern and length                              | **TBD** — §8                                                     |
 | Reserved-handle list                                                 | **TBD** — `database.md` §4; it belongs in `handleSchema`         |
 | Password and email rules                                             | **TBD** — `ui.md` §2.3; they'll live in `lib/validation/auth.ts` |
 | `error.tsx` copy and design                                          | **TBD** — `ui.md`                                                |
