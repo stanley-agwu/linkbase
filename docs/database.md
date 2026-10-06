@@ -180,9 +180,9 @@ const profileSchema = new Schema<ProfileDoc>(
       index: true,
       lowercase: true,
       trim: true,
-      minlength: 2,
-      maxlength: 30,
-      match: /^[a-z0-9][a-z0-9-]*$/,
+      minlength: 3,
+      maxlength: 24,
+      match: /^[a-z0-9._]+$/,
     },
     displayName: { type: String, required: true, trim: true, maxlength: 60 },
     bio: { type: String, trim: true, maxlength: 160 },
@@ -196,7 +196,7 @@ export const Profile = (mongoose.models.Profile ??
   mongoose.model<ProfileDoc>("Profile", profileSchema)) as Model<ProfileDoc>;
 ```
 
-`handle` is stored lowercase (`lowercase: true`) and matched against a lowercase-only pattern, so uniqueness is genuinely case-insensitive without a collation index. The reserved-handle list (`app`, `api`, `login`, `admin`, …) is enforced in `handleSchema` (`lib/validation`): **TBD** — needs a list before it can be written. The pattern and length here still disagree with `ui.md`'s `ClaimInput` sanitiser — see `errors-and-validation.md` §8.
+`handle` is stored lowercase (`lowercase: true`) and matched against a lowercase-only pattern, so uniqueness is genuinely case-insensitive without a collation index. The reserved-handle list (`app`, `api`, `login`, `admin`, …) is enforced in `handleSchema` (`lib/validation`): **TBD** — needs a list before it can be written. The pattern and length match `handleSchema` in `lib/validation/fields.ts` (lowercase letters, digits, `.` and `_`, 3–24 characters — `errors-and-validation.md` §8); change them together.
 
 **`link.ts`** — the rows in the editor: `userId`, `profileId`, `title`, `url`, `visible`, `order`, `clickCount`. Indexes: `userId`, plus compound `{ userId: 1, order: 1 }` for the ordered list read, and `{ profileId: 1, visible: 1, order: 1 }` for the public page.
 
