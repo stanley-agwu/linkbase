@@ -4,7 +4,7 @@ MongoDB via Mongoose. Mongoose owns the schema, validation, and the connection p
 
 Structure and import rules come from `architecture.md` — this doc is the `lib/db` half of it in detail. Anything undecided is marked **TBD**.
 
-> Mongoose is **not installed yet**: `npm i mongoose`. Nothing in this doc is in the repo — it's the target shape.
+> **Mongoose 9** is installed. In the repo: `lib/db/connect.ts`, `lib/db/index.ts`, and the `Profile`, `Link` and `Click` models. Not yet: the `User` model (waits for the auth adapter), `cache-tags.ts`, and the query functions — they arrive with the features that use them. Sections describing those are still the target shape.
 
 ---
 
@@ -36,10 +36,15 @@ Serverless and dev-mode HMR both re-evaluate modules, and a fresh `mongoose.conn
 import "server-only";
 import mongoose, { type Mongoose } from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI;
+// Read and checked once at import, so a missing variable fails at startup.
+// A helper, because TypeScript doesn't carry a module-level `if (!x) throw`
+// narrowing into the function below.
+const MONGODB_URI: string = readMongoUri();
 
-if (!MONGODB_URI) {
-  throw new Error("MONGODB_URI is not set");
+function readMongoUri(): string {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) throw new Error("MONGODB_URI is not set");
+  return uri;
 }
 
 // Survives HMR in dev and module re-evaluation between invocations in prod.
@@ -94,7 +99,7 @@ export const Link = (mongoose.models.Link ??
 | ------------- | ---------------------------------------------------------------------------------------------------- |
 | `MONGODB_URI` | full connection string including the database name. Local dev value in `.env.local`, never committed |
 
-Hosting target and whether dev runs against a local `mongod` or a shared Atlas cluster: **TBD**.
+Development runs against a **MongoDB Atlas** cluster (database `linkbase`); copy `.env.example` to `.env.local` and paste the cluster's connection string. Production hosting target: **TBD**.
 
 ---
 
@@ -129,16 +134,16 @@ Queries and mutations both live in `lib/db/queries` as plain async functions. A 
 
 Every schema, without exception:
 
-| Convention          | Why                                                                                                                               |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `strict: true`      | an unknown key is dropped rather than silently persisted, so a typo in an action can't invent a field                             |
-| `strictQuery: true` | an unknown key in a _filter_ throws instead of being ignored — a dropped filter clause is how a query silently stops being scoped |
-| `timestamps: true`  | `createdAt` / `updatedAt` on everything; no hand-maintained date fields                                                           |
-| `index` on `userId` | every query filters on it (§5), so every collection that has it indexes it                                                        |
-| `index` on `handle` | unique, and the public profile route looks up by it on every request                                                              |
-| `versionKey: false` | we don't use optimistic concurrency; `__v` only leaks into serialised output                                                      |
+| Convention             | Why                                                                                                                               |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `strict: true`         | an unknown key is dropped rather than silently persisted, so a typo in an action can't invent a field                             |
+| `strictQuery: "throw"` | an unknown key in a _filter_ throws instead of being dropped — a dropped filter clause is how a query silently stops being scoped |
+| `timestamps: true`     | `createdAt` / `updatedAt` on everything; no hand-maintained date fields                                                           |
+| `index` on `userId`    | every query filters on it (§5), so every collection that has it indexes it                                                        |
+| `index` on `handle`    | unique, and the public profile route looks up by it on every request                                                              |
+| `versionKey: false`    | we don't use optimistic concurrency; `__v` only leaks into serialised output                                                      |
 
-`strict: true` is Mongoose's default — it's set explicitly anyway, so the guarantee is visible in the file and survives a future default change. `strictQuery` is **not** the default in Mongoose 8 and has to be set.
+`strict: true` is Mongoose's default — it's set explicitly anyway, so the guarantee is visible in the file and survives a future default change. `strictQuery` defaults to `false` in Mongoose 9 and has to be set — and it must be `"throw"`, not `true`. With `true`, Mongoose **deletes** an unknown key from the filter (`lib/cast.js`), so `find({ userid })` runs as `find({})`; only `"throw"` raises a `StrictModeError`.
 
 ### Models
 
@@ -189,7 +194,7 @@ const profileSchema = new Schema<ProfileDoc>(
     themeId: { type: String, required: true, default: "default" },
     published: { type: Boolean, required: true, default: false },
   },
-  { strict: true, strictQuery: true, timestamps: true, versionKey: false },
+  { strict: true, strictQuery: "throw", timestamps: true, versionKey: false },
 );
 
 export const Profile = (mongoose.models.Profile ??
@@ -230,7 +235,7 @@ export async function updateLinkTitle(
   return Link.findOneAndUpdate(
     { _id: linkId, userId },
     { title },
-    { new: true, runValidators: true },
+    { returnDocument: "after", runValidators: true }, // `new: true` is deprecated in Mongoose 9
   ).lean();
 }
 ```
@@ -244,7 +249,7 @@ The rules that keep it true:
 - **Same for writes and deletes** — `findOneAndUpdate`, `updateOne`, `deleteOne`, `deleteMany` all carry `userId` in the filter.
 - **A bulk write scopes every operation**, not just the outer call. Reordering links means each `updateOne` filter contains `userId`.
 - **Return `null`, don't throw**, when nothing matched. The caller decides whether that's a 404 or a no-op; a distinct "exists but isn't yours" error would confirm the row exists.
-- **`strictQuery: true` protects the scope.** With it off, a mistyped `{ userid }` is dropped from the filter and the query silently returns everyone's rows. With it on, it throws.
+- **`strictQuery: "throw"` protects the scope.** With it off — or set to `true` — a mistyped `{ userid }` is dropped from the filter and the query silently returns everyone's rows. With `"throw"`, it throws.
 
 ### The public-profile exception
 
@@ -299,7 +304,7 @@ Where to put the mapping: a `toProfile(doc)` / `toLink(doc)` function per model 
 
 Nothing from a Mongoose error — message, path, or code — goes into an action result (`errors-and-validation.md` §7).
 
-Transactions: needed for anything spanning two collections (deleting a link and its clicks, creating a user plus profile at signup). They require a replica set — Atlas has one, a bare local `mongod` does not. Whether dev runs a replica set: **TBD**.
+Transactions: needed for anything spanning two collections (deleting a link and its clicks, creating a user plus profile at signup). They require a replica set — Atlas has one, a bare local `mongod` does not. Development runs on Atlas (§2), so transactions work in dev too.
 
 ---
 
