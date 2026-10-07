@@ -4,7 +4,7 @@ Secrets, response headers, rate limiting, and the handling of user-generated con
 
 Scope: the measures that protect the app and its visitors. `auth.md` owns identity and access control — who a request is, and which routes and rows they may touch — and is the larger half of security in this app; this doc covers everything around it. `errors-and-validation.md` owns input validation and what may leak through an error message, `data-mutations.md` the write path. Anything undecided is marked **TBD**.
 
-> **Nothing in this doc is implemented yet.** There's no `.env.local` or `.env.example`, `next.config.ts` has no `headers()`, no rate limiter exists, and `ProfileLink` hasn't been built. §1.1 and §2.1 are the two things to do first, and §1.1 needs a `.gitignore` change before `.env.example` can be committed at all.
+> **Partly implemented.** Done: §1.1's `.gitignore` negation and `.env.example` (with `MONGODB_URI`), and `ProfileLink` (preview-only so far). Not yet: `next.config.ts` has no `headers()` (§2.1 is the next thing to do), no CSP, no rate limiter, and no real profile links.
 
 ---
 
@@ -20,7 +20,7 @@ Scope: the measures that protect the app and its visitors. `auth.md` owns identi
 | `.env.example`         | **Yes**    | every variable name the app needs, with empty or obviously fake values |
 | Production environment | n/a        | set in the host's dashboard, never in a file                           |
 
-`.gitignore` already ignores `.env*`, which covers `.env.local` — **and also `.env.example`**, so the template can't be committed as things stand. Add the negation:
+`.gitignore` ignores `.env*`, which covers `.env.local` — **and would also cover `.env.example`**, so it carries a negation for the template:
 
 ```gitignore
 # env files (can opt-in for committing if needed)
@@ -28,15 +28,15 @@ Scope: the measures that protect the app and its visitors. `auth.md` owns identi
 !.env.example
 ```
 
-Verify it with `git check-ignore -v .env.example` (no output means it's committable) rather than assuming.
+Verify it with `git check-ignore .env.example` (no output means it's committable) rather than assuming. Don't add `-v` for this check: with `-v` it prints the matching `!.env.example` rule even though the file isn't ignored.
 
 ### 1.2 `.env.example`
 
 The template is the list of variables a new contributor must fill in, and it's the only place that list exists. Every variable the app reads appears here with a safe placeholder, and it's updated in the **same commit** that starts reading a new one.
 
 ```bash
-# MongoDB connection string, including the database name (database.md §2)
-MONGODB_URI=mongodb://localhost:27017/linkbase
+# MongoDB Atlas connection string, including the database name (database.md §2)
+MONGODB_URI=mongodb+srv://USER:PASSWORD@CLUSTER.mongodb.net/linkbase?retryWrites=true&w=majority
 
 # Signs and encrypts the session token — generate with: openssl rand -base64 32
 AUTH_SECRET=
