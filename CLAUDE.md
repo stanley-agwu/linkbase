@@ -15,11 +15,15 @@ npm run lint:fix     # eslint --fix (autofixes import order)
 npm run typecheck    # tsc --noEmit
 npm run format       # prettier --write .
 npm run format:check # prettier --check . — for CI
+npm test             # vitest run — all unit tests, once
+npm run test:watch   # vitest in watch mode
+npm test -- src/lib/safe-redirect.test.ts   # a single test file
+npm test -- -t "rejects protocol-relative"  # tests whose name matches
 ```
 
 ESLint is **type-aware** here (`projectService` in `eslint.config.mjs`), so lint needs a valid tsconfig and is slower than a syntax-only lint. It still isn't a substitute for `npm run typecheck` — it only type-checks what its rules ask about.
 
-There is no test runner configured yet. If you add one, document the single-test invocation here.
+Unit tests are Vitest (`vitest.config.mts`), for pure functions and Zod schemas only, colocated as `*.test.ts`. End-to-end QA is Playwright MCP, not committed specs. See `docs/testing.md`.
 
 ## State of the repo
 
@@ -46,6 +50,8 @@ Project skills live in `.claude/skills/`. Third-party ones are recorded in `skil
 
 - `plan-feature` — plans a feature before any code; saves it to `plans/<branch>.md`.
 - `create-feature` — builds an approved plan.
+- `write-tests` — writes a feature's unit tests per `docs/testing.md`; doesn't run them.
+- `run-qa-suite` — runs the plan's QA scenarios through Playwright MCP against the test DB (`MONGODB_URI_TEST`), fixing failures in code (3 attempts each); no commits.
 - `vercel-react-best-practices` — Vercel's React/Next.js performance rules (`rules/*.md`, full text in `AGENTS.md`). Load it whenever writing, reviewing, or refactoring components, pages, layouts, Server Actions, or data reads — `plan-feature` and `create-feature` both do. Apply the CRITICAL and HIGH categories (`async-`, `bundle-`, `server-`) by default.
 
 `/docs` wins where a rule conflicts with this repo's conventions. Known conflicts:
@@ -75,4 +81,5 @@ Whenever a new file is created in `/docs`, add it to the Project Docs section be
 - `docs/git-conventions.md` — how work is branched, committed, reviewed, and merged: `<type>/<description>` branch names, Conventional Commits with an imperative subject and the six allowed types, one logical change per commit with each commit building, the branch → PR → squash-merge flow, the required human review (agent-written changes included), and why `main` is never committed to directly. Read it before your first commit on a new piece of work.
 - `docs/routing.md` — the URL map and the file conventions behind it: which routes are public (`/`, `/user/[handle]`) vs authenticated, the three route groups (`(marketing)`, `(auth)`, `(dashboard)`) and why groups don't affect URLs, default-deny protection in `proxy.ts` (the file Next 16 renamed from `middleware`), when a segment earns its own `layout`/`loading`/`error`/`not-found`, the `error.tsx` rules (`"use client"`, `retry` not `reset`, digest-only messages in production), and why `app/api` is reserved for webhooks and OAuth callbacks while everything else is a Server Action. Read it before adding a route or an endpoint. §7 lists route-shape conflicts with `ui.md`/`architecture.md` that are still open.
 - `docs/security.md` — the protections around auth: secrets in environment variables with `.env.local` ignored and `.env.example` as the committed template (and the `.gitignore` negation that makes that possible), static security headers in `next.config.ts` versus nonce-based CSP in `proxy.ts`, which endpoints need rate limiting and why sign-in needs two counters, and user-generated content — React's escaping, `http`/`https`-only link URLs, and `rel="noopener noreferrer"` on outbound links. Read it before adding an env var, touching headers, or rendering anything a user typed.
+- `docs/testing.md` — how code is tested: Vitest unit tests for pure functions and Zod schemas only, colocated as `*.test.ts` (nothing that imports `server-only` or `@/lib/db`), end-to-end QA through Playwright MCP driven by the `run-qa-suite` skill with no committed `/e2e`, `playwright.config.ts`, or `.spec.ts`, Server Actions tested through QA and never mocked, QA against a separate test database (`MONGODB_URI_TEST` in `.env.test`), and the independence rules (per-scenario data, unique emails, rate-limit resets). Read it before writing a test or calling a feature done.
 - `docs/ui.md` — the component and layout spec: every component's props, variants, sizes and states (Button, ClaimInput, TextField, Toggle, Chip, NavBar, cards, profile and editor pieces), the page layouts (marketing, signup, editor, public profile), content conventions, and accessibility notes. Read it before building or changing a component or page layout.

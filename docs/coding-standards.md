@@ -28,7 +28,7 @@ npm run build        # the full gate: types + lint + build
 
 **Lint and typecheck are separate gates.** ESLint is type-aware here (§6 and §7 need it), but it type-checks only what its rules ask about — a type error elsewhere in the file won't fail lint. Run both; `npm run build` runs both for you.
 
-Two things ESLint is deliberately not: a formatter (that's Prettier, §3) and a test runner (there isn't one — **TBD**).
+Two things ESLint is deliberately not: a formatter (that's Prettier, §3) and a test runner (that's Vitest — `testing.md`).
 
 ---
 

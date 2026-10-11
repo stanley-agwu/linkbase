@@ -47,3 +47,6 @@ CLAUDE.local.md
 
 # feature plans written by the plan-feature skill
 /plans/
+
+# Ignore Playwright mcp directory
+.playwright-mcp
