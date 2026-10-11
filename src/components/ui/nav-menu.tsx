@@ -3,18 +3,20 @@
 import { useId, useState } from "react";
 import Link from "next/link";
 
-import { Button, ButtonLink } from "./button";
+import { Button } from "./button";
 
 type NavMenuProps = {
   logo: React.ReactNode;
   links: { label: string; href: string }[];
+  actions: React.ReactNode;
+  drawerActions?: React.ReactNode;
 };
 
 /**
- * The compact nav used below 1100px: logo, Log in (hidden under 640px), Sign
- * up, and a Menu button that opens a drawer with the full link list.
+ * The compact nav used below 1100px: logo, the account `actions`, and a Menu
+ * button that opens a drawer with the full link list and `drawerActions`.
  */
-export function NavMenu({ logo, links }: NavMenuProps) {
+export function NavMenu({ logo, links, actions, drawerActions }: NavMenuProps) {
   const [open, setOpen] = useState(false);
   const drawerId = useId();
 
@@ -35,13 +37,7 @@ export function NavMenu({ logo, links }: NavMenuProps) {
         >
           {logo}
         </Link>
-        <ButtonLink href="/login" variant="soft" className="max-[639px]:hidden">
-          Log in
-        </ButtonLink>
-        <ButtonLink href="/signup" variant="dark">
-          <span className="max-[639px]:hidden">Sign up free</span>
-          <span className="min-[640px]:hidden">Sign up</span>
-        </ButtonLink>
+        {actions}
         <Button
           variant="outline"
           aria-expanded={open}
@@ -72,24 +68,7 @@ export function NavMenu({ logo, links }: NavMenuProps) {
               </span>
             </Link>
           ))}
-          <div className="mt-5 flex flex-wrap gap-2">
-            <ButtonLink
-              href="/login"
-              variant="soft"
-              fullWidth
-              className="flex-[1_1_140px]"
-            >
-              Log in
-            </ButtonLink>
-            <ButtonLink
-              href="/signup"
-              variant="dark"
-              fullWidth
-              className="flex-[1_1_140px]"
-            >
-              Sign up free
-            </ButtonLink>
-          </div>
+          {drawerActions}
         </div>
       )}
     </header>

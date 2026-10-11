@@ -25,3 +25,25 @@ export function sanitizeHandle(input: string): string {
     .replace(HANDLE_DISALLOWED, "")
     .slice(0, HANDLE_MAX_LENGTH);
 }
+
+// RFC 5321 caps a forward path at 256 octets, which leaves 254 for the address.
+export const EMAIL_MAX_LENGTH = 254;
+export const NAME_MAX_LENGTH = 60;
+export const PASSWORD_MIN_LENGTH = 8;
+// argon2 hashes any length, but an unbounded input is a cheap way to burn CPU.
+export const PASSWORD_MAX_LENGTH = 128;
+
+// Normalised before the format check, so " Jane@Example.com " is accepted and
+// stored as "jane@example.com".
+export const emailSchema = z
+  .string({ error: "Enter your email address." })
+  .trim()
+  .toLowerCase()
+  .max(EMAIL_MAX_LENGTH, "That email is too long.")
+  .pipe(z.email({ error: "Enter a valid email address." }));
+
+/** For choosing a password. Signing in only checks presence (see auth.ts). */
+export const passwordSchema = z
+  .string({ error: "Enter a password." })
+  .min(PASSWORD_MIN_LENGTH, `Use at least ${PASSWORD_MIN_LENGTH} characters.`)
+  .max(PASSWORD_MAX_LENGTH, `Use ${PASSWORD_MAX_LENGTH} characters or fewer.`);
