@@ -1,5 +1,7 @@
 import "server-only";
-import mongoose, { Schema, type Model, type Types } from "mongoose";
+import { Schema, type Types } from "mongoose";
+
+import { defineModel } from "./define-model";
 
 /** One analytics event. Raw events for now; roll-up or TTL is TBD (database.md §4). */
 export interface ClickDoc {
@@ -27,5 +29,4 @@ const clickSchema = new Schema<ClickDoc>(
 // covers plain userId lookups, so no separate userId index.
 clickSchema.index({ userId: 1, createdAt: -1 });
 
-export const Click = (mongoose.models.Click ??
-  mongoose.model<ClickDoc>("Click", clickSchema)) as Model<ClickDoc>;
+export const Click = defineModel<ClickDoc>("Click", clickSchema);

@@ -5,4 +5,11 @@ export { Link, type LinkDoc } from "./models/link";
 export { Profile, type ProfileDoc } from "./models/profile";
 export { User, type UserDoc } from "./models/user";
 export { consumeRateLimit } from "./queries/rate-limit";
-export { createUser, findUserForSignIn } from "./queries/user";
+export {
+  createUser,
+  filterAvailableUsernames,
+  findUserForSignIn,
+  getUsername,
+  isUsernameAvailable,
+  setUsername,
+} from "./queries/user";

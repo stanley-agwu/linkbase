@@ -35,4 +35,6 @@ export type AuthUser = {
   id: string;
   email: string;
   name: string | null;
+  /** Null until chosen during onboarding. */
+  username: string | null;
 };
