@@ -12,15 +12,16 @@ The URL map, the route groups behind it, and which file conventions each segment
 
 ## 1. The route map
 
-| URL              | File                              | Access            | Renders (`ui.md`) |
-| ---------------- | --------------------------------- | ----------------- | ----------------- |
-| `/`              | `(marketing)/page.tsx`            | **public**        | §2.2 landing      |
-| `/login`         | `(auth)/login/page.tsx`           | **public**        | §2.3              |
-| `/signup`        | `(auth)/signup/page.tsx`          | **public**        | §2.3 onboarding   |
-| `/dashboard`     | `(dashboard)/dashboard/page.tsx`  | **authenticated** | §2.4              |
-| `/add-links`     | `(dashboard)/add-links/page.tsx`  | **authenticated** | §2.4 Links tab    |
-| `/user/[handle]` | `user/[handle]/page.tsx`          | **public**        | §2.5 profile      |
-| `/api/auth/*`    | `api/auth/[...nextauth]/route.ts` | public            | — (NextAuth)      |
+| URL              | File                               | Access            | Renders (`ui.md`) |
+| ---------------- | ---------------------------------- | ----------------- | ----------------- |
+| `/`              | `(marketing)/page.tsx`             | **public**        | §2.2 landing      |
+| `/login`         | `(auth)/login/page.tsx`            | **public**        | §2.3              |
+| `/signup`        | `(auth)/signup/page.tsx`           | **public**        | §2.3 onboarding   |
+| `/onboarding`    | `(onboarding)/onboarding/page.tsx` | **authenticated** | §2.3 username     |
+| `/dashboard`     | `(dashboard)/dashboard/page.tsx`   | **authenticated** | §2.4              |
+| `/add-links`     | `(dashboard)/add-links/page.tsx`   | **authenticated** | §2.4 Links tab    |
+| `/user/[handle]` | `user/[handle]/page.tsx`           | **public**        | §2.5 profile      |
+| `/api/auth/*`    | `api/auth/[...nextauth]/route.ts`  | public            | — (NextAuth)      |
 
 Unauthenticated requests to a protected route are redirected to `/login` with the original path preserved in `?next=`, so sign-in can return the user there (`auth.md` §4 — validate that param on use, or you've built an open redirect).
 
@@ -30,13 +31,14 @@ Anything not in this table is **authenticated by default**. Adding a public rout
 
 ## 2. Route groups
 
-Three groups, none of which appear in the URL — a folder in parentheses is omitted from the path. `(dashboard)/dashboard/page.tsx` serving `/dashboard` is not a typo: the group is an organisational wrapper, the segment inside it is the URL.
+Four groups, none of which appear in the URL — a folder in parentheses is omitted from the path. `(dashboard)/dashboard/page.tsx` serving `/dashboard` is not a typo: the group is an organisational wrapper, the segment inside it is the URL.
 
-| Group         | Holds                      | Exists because                                                                |
-| ------------- | -------------------------- | ----------------------------------------------------------------------------- |
-| `(marketing)` | the landing page           | keeps the public shell (NavBar, Footer) off the app and auth pages            |
-| `(auth)`      | `/login`, `/signup`        | a centred, chrome-free shell, and one place to bounce already-signed-in users |
-| `(dashboard)` | `/dashboard`, `/add-links` | one authenticated shell, and the unit the proxy protects wholesale            |
+| Group          | Holds                      | Exists because                                                                              |
+| -------------- | -------------------------- | ------------------------------------------------------------------------------------------- |
+| `(marketing)`  | the landing page           | keeps the public shell (NavBar, Footer) off the app and auth pages                          |
+| `(auth)`       | `/login`, `/signup`        | a centred, chrome-free shell, and one place to bounce already-signed-in users               |
+| `(onboarding)` | `/onboarding`              | a logo-only shell for the signed-in user who has no username yet; the proxy holds them here |
+| `(dashboard)`  | `/dashboard`, `/add-links` | one authenticated shell, and the unit the proxy protects wholesale                          |
 
 Three things that follow from groups not affecting the URL:
 
@@ -68,6 +70,15 @@ src/
         page.tsx                  # /login
       signup/
         page.tsx                  # /signup
+
+    (onboarding)/
+      layout.tsx                  # logo bar, narrow column
+      error.tsx
+      onboarding/
+        page.tsx                  # /onboarding — choose a username
+        _actions.ts               # chooseUsername, checkUsernameAvailability
+        _components/
+          username-form.tsx
 
     (dashboard)/
       layout.tsx                  # top bar + sidebar shell
@@ -202,12 +213,12 @@ This route map was specified after `ui.md`, `architecture.md`, and `auth.md`, an
 
 ## 8. Not decided yet
 
-| Item                                                                | Status                                                     |
-| ------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Whether `/add-links`, Appearance, and Analytics are routes or tabs  | **TBD** (§7) — blocks the `(dashboard)` layout             |
-| Post-signup destination, and whether onboarding is a route per step | **TBD** — `ui.md` §2.3 has 4 steps with no URLs assigned   |
-| `/templates` page (`ui.md` §2.2 mentions a standalone gallery)      | **TBD** — not in the map above                             |
-| Whether the landing page needs `(marketing)/layout.tsx`             | **TBD** — only if a second marketing page lands            |
-| First webhook provider and its signature scheme                     | **TBD** (§6)                                               |
-| `/user/[handle]` metadata and OG image generation                   | **TBD** — `opengraph-image.tsx` would live in that segment |
-| Reserved-handle list, so `/user/admin` and friends can't be claimed | **TBD** — a routing concern as much as a data one          |
+| Item                                                                   | Status                                                                |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| Whether `/add-links`, Appearance, and Analytics are routes or tabs     | **TBD** (§7) — blocks the `(dashboard)` layout                        |
+| Whether the remaining onboarding steps (theme, quick links) get routes | **TBD** — only the username step exists, at `/onboarding`             |
+| `/templates` page (`ui.md` §2.2 mentions a standalone gallery)         | **TBD** — not in the map above                                        |
+| Whether the landing page needs `(marketing)/layout.tsx`                | **TBD** — only if a second marketing page lands                       |
+| First webhook provider and its signature scheme                        | **TBD** (§6)                                                          |
+| `/user/[handle]` metadata and OG image generation                      | **TBD** — `opengraph-image.tsx` would live in that segment            |
+| Which names besides `admin` to reserve                                 | **TBD** — the list is `RESERVED_HANDLES` (`lib/validation/fields.ts`) |

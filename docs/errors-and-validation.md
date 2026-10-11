@@ -72,8 +72,11 @@ export const handleSchema = z
   .trim()
   .toLowerCase()
   .min(3, "Use at least 3 characters.")
-  .max(24, "Use 24 characters or fewer.")
-  .regex(/^[a-z0-9._]+$/, "Use letters, numbers, dots and underscores only.");
+  .max(30, "Use 30 characters or fewer.")
+  .regex(
+    /^[a-z0-9_-]+$/,
+    "Use letters, numbers, hyphens and underscores only.",
+  );
 
 export const urlSchema = z
   .url({
@@ -504,12 +507,13 @@ The client may see three things about a failure: a message **we wrote** (from a 
 
 ## 8. The handle rule (settled)
 
-`database.md` §4 and `ui.md` §1.3 used to disagree on what a valid handle is:
+**The handle is the username chosen during onboarding: lowercase letters, digits, `-` and `_`, 3–30 characters.** It's also the public URL, `/user/[handle]`. `handleSchema` in `lib/validation/fields.ts` is the definition (`HANDLE_MIN_LENGTH`, `HANDLE_MAX_LENGTH`, `HANDLE_PATTERN`). `sanitizeHandle` beside it is the as-you-type sanitiser for `ClaimInput` and the onboarding field, built from the same constants. The Mongoose validators on `User.username` (`database.md` §4) import the same constants. Change all of them together.
 
-| Source                               | Characters             | Length |
-| ------------------------------------ | ---------------------- | ------ |
-| `database.md` §4 (Mongoose)          | `^[a-z0-9][a-z0-9-]*$` | 2–30   |
-| `ui.md` §1.3 (ClaimInput, on change) | `[a-z0-9._]`           | ≤ 24   |
+History: `database.md` and `ui.md` once disagreed (`2–30, [a-z0-9-]` vs `≤ 24, [a-z0-9._]`), and the `ui.md` rule was settled first. The onboarding feature replaced it with the current rule, so dots are no longer allowed and hyphens are. No usernames existed at the time, so nothing needed migrating.
+
+------------------------------------ | ---------------------- | ------ |
+| `database.md` §4 (Mongoose) | `^[a-z0-9][a-z0-9-]*$` | 2–30 |
+| `ui.md` §1.3 (ClaimInput, on change) | `[a-z0-9._]` | ≤ 24 |
 
 **Settled: the `ui.md` rule wins** — lowercase letters, digits, `.` and `_`, 3–24 characters. `handleSchema` in `lib/validation/fields.ts` is the definition; `sanitizeHandle` beside it is the `ClaimInput` sanitiser, built from the same constants; `database.md` §4's Mongoose `match` / `minlength` / `maxlength` were updated to match. Change all three together.
 
@@ -535,7 +539,7 @@ The client may see three things about a failure: a message **we wrote** (from a 
 | -------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | Logging backend: stay on structured `console`, or a logger / service | **TBD** — `lib/logger.ts` is the seam either way                 |
 | Client-side error reporting (errors `onRequestError` can't see)      | **TBD**                                                          |
-| Reserved-handle list                                                 | **TBD** — `database.md` §4; it belongs in `handleSchema`         |
+| Reserved names beyond `admin`                                        | **TBD** — add to `RESERVED_HANDLES`, which `handleSchema` checks |
 | Password and email rules                                             | **TBD** — `ui.md` §2.3; they'll live in `lib/validation/auth.ts` |
 | `error.tsx` copy and design                                          | **TBD** — `ui.md`                                                |
 | Whether `onRequestError` also alerts, and on which events            | **TBD**                                                          |

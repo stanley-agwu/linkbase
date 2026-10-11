@@ -121,10 +121,13 @@ Everything under `app/(dashboard)/*` requires a session. The public profile is o
 | `/login`, `/signup` | public; redirect to the dashboard when already signed in         |
 | `/user/[handle]`    | **public** — the whole point of the product                      |
 | `/api/auth/*`       | public — NextAuth's own endpoints                                |
-| `/(dashboard)/*`    | **authenticated** — editor, appearance, analytics                |
+| `/onboarding`       | **authenticated** — choose a username; only until one is set     |
+| `/(dashboard)/*`    | **authenticated** and onboarded — editor, appearance, analytics  |
 | anything new        | authenticated, unless it's deliberately added to the public list |
 
 Default-deny: the proxy's rule is "protected unless listed public", not "public unless listed protected". A new dashboard route is protected the moment it exists, with nobody having to remember to add it.
+
+**Onboarding gate.** A signed-in user with no username is redirected from every protected route to `/onboarding`, and a user who has one is redirected from `/onboarding` to `/dashboard`. The proxy stays database-free, so the username rides in the JWT: `authorize` returns it at sign-in, and choosing one calls `updateSession()` (NextAuth's `unstable_update`). The `jwt` callback in `auth.ts` handles that update by **re-reading the username from the database and ignoring the payload**, because anyone holding the cookie can POST an update with any payload to `/api/auth/session`. Like the rest of the proxy, this gate is UX. Pages past onboarding call `requireUsername()` (`lib/auth`), which checks the database, and the onboarding actions call `requireUserId()`.
 
 ```ts
 // src/proxy.ts
@@ -270,14 +273,14 @@ New action:
 
 ## 7. Not decided yet
 
-| Item                                                             | Status                                                                 |
-| ---------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| Session lifetime and refresh behaviour                           | **Settled** — 7 days, `updateAge` 1 day (§1)                           |
-| Password hashing algorithm and cost                              | **Settled** — argon2id, 19 MiB / t=2 / p=1 (§1)                        |
-| Email verification flow                                          | **TBD**                                                                |
-| Password reset flow                                              | **TBD**                                                                |
-| Rate limiting on sign-in, signup, and handle-availability checks | sign-in and sign-up **done** (`security.md` §3); handle checks **TBD** |
-| Whether the MongoDB adapter is needed                            | **TBD** (§1)                                                           |
-| Server-side session revocation                                   | **TBD** — not possible with JWT sessions as specified                  |
-| Account deletion / data export                                   | **TBD**                                                                |
-| Content Security Policy                                          | **TBD**                                                                |
+| Item                                                             | Status                                                                                                                            |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Session lifetime and refresh behaviour                           | **Settled** — 7 days, `updateAge` 1 day (§1)                                                                                      |
+| Password hashing algorithm and cost                              | **Settled** — argon2id, 19 MiB / t=2 / p=1 (§1)                                                                                   |
+| Email verification flow                                          | **TBD**                                                                                                                           |
+| Password reset flow                                              | **TBD**                                                                                                                           |
+| Rate limiting on sign-in, signup, and handle-availability checks | **done** — sign-in and sign-up (`security.md` §3); username checks 30/min per account (`app/(onboarding)/onboarding/_actions.ts`) |
+| Whether the MongoDB adapter is needed                            | **TBD** (§1)                                                                                                                      |
+| Server-side session revocation                                   | **TBD** — not possible with JWT sessions as specified                                                                             |
+| Account deletion / data export                                   | **TBD**                                                                                                                           |
+| Content Security Policy                                          | **TBD**                                                                                                                           |

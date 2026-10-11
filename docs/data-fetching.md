@@ -124,12 +124,18 @@ import { cacheTags } from "../cache-tags";
 import { connectToDatabase } from "../connect";
 import { Link } from "../models/link";
 import { Profile } from "../models/profile";
+import { User } from "../models/user";
 
 async function readPublicPage(handle: string): Promise<PublicPage | null> {
   await connectToDatabase();
 
-  const profile = await Profile.findOne({ handle, published: true })
-    .select("handle displayName bio themeId")
+  // The handle is the owner's username (database.md §4): user first, then
+  // their profile. Only the _id leaves the user read.
+  const owner = await User.findOne({ username: handle }).select("_id").lean();
+  if (!owner) return null;
+
+  const profile = await Profile.findOne({ userId: owner._id, published: true })
+    .select("displayName bio themeId")
     .lean();
   if (!profile) return null;
 
@@ -209,7 +215,7 @@ Which writes clear which tags:
 | Update display name, bio, theme, socials          | `publicProfile(handle)`                                       |
 | Publish or unpublish                              | `publicProfile(handle)`                                       |
 | Change handle                                     | `publicProfile(oldHandle)` **and** `publicProfile(newHandle)` |
-| Claim a handle (signup)                           | `publicProfile(handle)` — clears a cached "not found"         |
+| Choose a username (onboarding)                    | `publicProfile(username)` — clears a cached "not found"       |
 | Delete account                                    | `publicProfile(handle)`                                       |
 | Record a click                                    | **nothing** — the public page doesn't show counts             |
 
@@ -280,21 +286,24 @@ export function LinkList({ links }: LinkListProps) {
 
 ### 5.1 The one client-initiated read
 
-Some reads are triggered by typing, not navigation — the handle availability check in `ClaimInput` (`ui.md` §1.3). That's a **Server Action** that returns an answer, not a Route Handler and not a database import:
+Some reads are triggered by typing, not navigation — the username availability check on the onboarding field (`ui.md` §2.3). That's a **Server Action** that returns an answer, not a Route Handler and not a database import. Simplified from `app/(onboarding)/onboarding/_actions.ts`, which also rate-limits per account:
 
 ```ts
 "use server";
 
-export async function checkHandleAvailability(
-  handle: string,
-): Promise<boolean> {
-  const parsed = handleSchema.safeParse(handle);
-  if (!parsed.success) return false;
-  return isHandleAvailable(parsed.data);
+export async function checkUsernameAvailability(
+  username: string,
+): Promise<UsernameAvailability> {
+  await requireUserId();
+  const parsed = handleSchema.safeParse(username);
+  if (!parsed.success) return { status: "invalid", message: "…" };
+  return {
+    status: (await isUsernameAvailable(parsed.data)) ? "available" : "taken",
+  };
 }
 ```
 
-- It returns the **answer** (`true` / `false`), never a document.
+- It returns the **answer** (available / taken / invalid), never a document. It's a hint for the message: the unique index decides at write time.
 - It validates its input like any action — it's reachable by direct POST (`errors-and-validation.md` §2).
 - Server Actions run one at a time per client, so debounce the caller; a request per keystroke will queue.
 - This is the exception, for input-driven reads only. If you're tempted to use an action to load a page's data, the read belongs in the Server Component instead.
