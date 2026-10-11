@@ -36,7 +36,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${bricolage.variable} ${dmSans.variable} ${jetbrains.variable} h-full`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      {/* Browser extensions (e.g. Grammarly) inject attributes on <body> before
+          hydration; this silences only those attribute diffs, not children. */}
+      <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }
