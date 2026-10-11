@@ -54,7 +54,7 @@ Scope: branch names, commit messages, and the pull request flow. `coding-standar
 | `fix`      | a defect in shipped behaviour                                                |
 | `docs`     | documentation only — anything under `docs/`, `CLAUDE.md`, `README`           |
 | `refactor` | changes structure, not behaviour. If behaviour changed, it's `feat` or `fix` |
-| `test`     | tests only (no runner configured yet — `CLAUDE.md`)                          |
+| `test`     | tests only — Vitest unit tests (`testing.md`)                                |
 | `chore`    | tooling, dependencies, config, CI — the scaffolding around the app           |
 
 Nothing outside this set. If a change doesn't obviously fit one, it's probably two commits.
