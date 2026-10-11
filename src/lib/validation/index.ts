@@ -10,6 +10,8 @@ export {
   emailSchema,
   HANDLE_MAX_LENGTH,
   HANDLE_MIN_LENGTH,
+  HANDLE_PATTERN,
+  RESERVED_HANDLES,
   handleSchema,
   NAME_MAX_LENGTH,
   PASSWORD_MAX_LENGTH,
@@ -17,6 +19,7 @@ export {
   passwordSchema,
   sanitizeHandle,
 } from "./fields";
+export { type ChooseUsernameInput, chooseUsernameSchema } from "./onboarding";
 export {
   type ActionResult,
   type FieldErrors,

@@ -18,7 +18,8 @@ type ClaimStatus = "idle" | "error";
 
 /**
  * The "claim your link" control: `linkbase.me/` + handle + submit. Checks the
- * handle's format here; whether it's taken is checked at signup.
+ * handle's format here; whether it's taken is checked during onboarding,
+ * where the handle is prefilled.
  */
 export function ClaimInput({ helper = "", inverse = false }: ClaimInputProps) {
   const router = useRouter();
