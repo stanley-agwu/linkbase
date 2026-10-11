@@ -54,6 +54,20 @@ function checkedTestUri() {
     fail("MONGODB_URI_TEST is the same as the dev MONGODB_URI");
   }
 
+  // user:password@host — without the "@", the driver reads the credentials as
+  // host:port and every connection fails.
+  const authority = testUri.match(/^mongodb(?:\+srv)?:\/\/([^/?]*)/)?.[1] ?? "";
+  if (!authority.includes("@")) {
+    fail(
+      'MONGODB_URI_TEST has no "@host" part — expected mongodb+srv://<user>:<password>@<host>/<database>',
+    );
+  }
+  if (testUri.startsWith("mongodb+srv://") && host(testUri).includes(":")) {
+    fail(
+      "MONGODB_URI_TEST is a mongodb+srv URI with a port; srv hosts take none (if the password has special characters, URL-encode them)",
+    );
+  }
+
   const name = dbName(testUri);
   if (!name)
     fail(
