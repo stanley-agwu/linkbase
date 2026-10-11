@@ -1,5 +1,7 @@
 import "server-only";
-import mongoose, { Schema, type Model, type Types } from "mongoose";
+import { Schema, type Types } from "mongoose";
+
+import { defineModel } from "./define-model";
 
 /** One fixed-window counter per key, e.g. `login:email:jane@example.com`. */
 export interface RateLimitDoc {
@@ -22,8 +24,7 @@ const rateLimitSchema = new Schema<RateLimitDoc>(
   { strict: true, strictQuery: "throw", versionKey: false },
 );
 
-export const RateLimit = (mongoose.models.RateLimit ??
-  mongoose.model<RateLimitDoc>(
-    "RateLimit",
-    rateLimitSchema,
-  )) as Model<RateLimitDoc>;
+export const RateLimit = defineModel<RateLimitDoc>(
+  "RateLimit",
+  rateLimitSchema,
+);

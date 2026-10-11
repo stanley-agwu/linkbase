@@ -17,18 +17,33 @@ function isPublic(pathname: string): boolean {
   );
 }
 
+const ONBOARDING_PATH = "/onboarding";
+
 /**
  * Default-deny route gate (auth.md §4): everything is protected unless listed
- * public. A UX redirect, not the security boundary — pages and actions check
- * the session themselves.
+ * public, and a signed-in user without a username is held at onboarding until
+ * they choose one. UX redirects, not the security boundary — pages and actions
+ * check the session (and the username) themselves.
  */
 export const proxy = auth((request) => {
   const { pathname, search } = request.nextUrl;
-  if (request.auth || isPublic(pathname)) return NextResponse.next();
+  if (isPublic(pathname)) return NextResponse.next();
 
-  const url = new URL("/login", request.nextUrl);
-  url.searchParams.set("next", pathname + search);
-  return NextResponse.redirect(url);
+  if (!request.auth) {
+    const url = new URL("/login", request.nextUrl);
+    url.searchParams.set("next", pathname + search);
+    return NextResponse.redirect(url);
+  }
+
+  const onboarding = pathname === ONBOARDING_PATH;
+  const hasUsername = Boolean(request.auth.user.username);
+  if (!hasUsername && !onboarding) {
+    return NextResponse.redirect(new URL(ONBOARDING_PATH, request.nextUrl));
+  }
+  if (hasUsername && onboarding) {
+    return NextResponse.redirect(new URL("/dashboard", request.nextUrl));
+  }
+  return NextResponse.next();
 });
 
 export const config = {

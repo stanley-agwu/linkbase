@@ -16,13 +16,21 @@ export const authConfig = {
   providers: [],
   callbacks: {
     // `user` is only present on sign-in; afterwards the id rides in the token.
-    // Name and email are copied into the token by NextAuth's defaults.
+    // Name and email are copied into the token by NextAuth's defaults. The
+    // username rides along too, so proxy.ts can send users without one to
+    // onboarding without a database read. auth.ts refreshes it on update.
     jwt({ token, user }) {
-      if (user?.id) token.id = user.id;
+      if (user?.id) {
+        token.id = user.id;
+        token.username =
+          typeof user.username === "string" ? user.username : null;
+      }
       return token;
     },
     session({ session, token }) {
       if (typeof token.id === "string") session.user.id = token.id;
+      session.user.username =
+        typeof token.username === "string" ? token.username : null;
       return session;
     },
   },

@@ -1,12 +1,11 @@
 import "server-only";
-import mongoose, { Schema, type Model, type Types } from "mongoose";
+import { Schema, type Types } from "mongoose";
 
-import { HANDLE_MAX_LENGTH, HANDLE_MIN_LENGTH } from "@/lib/validation";
+import { defineModel } from "./define-model";
 
 export interface ProfileDoc {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
-  handle: string;
   displayName: string;
   bio?: string;
   themeId: string;
@@ -17,24 +16,14 @@ export interface ProfileDoc {
 
 const profileSchema = new Schema<ProfileDoc>(
   {
+    // No handle here: the public URL is the owner's User.username, so the
+    // public read finds the user by username, then this profile by userId.
     userId: {
       type: Schema.Types.ObjectId,
       ref: "User",
       required: true,
       unique: true,
       index: true,
-    },
-    // Same rule as handleSchema in lib/validation (errors-and-validation.md §8).
-    handle: {
-      type: String,
-      required: true,
-      unique: true,
-      index: true,
-      lowercase: true,
-      trim: true,
-      minlength: HANDLE_MIN_LENGTH,
-      maxlength: HANDLE_MAX_LENGTH,
-      match: /^[a-z0-9._]+$/,
     },
     displayName: { type: String, required: true, trim: true, maxlength: 60 },
     bio: { type: String, trim: true, maxlength: 160 },
@@ -49,5 +38,4 @@ const profileSchema = new Schema<ProfileDoc>(
   },
 );
 
-export const Profile = (mongoose.models.Profile ??
-  mongoose.model<ProfileDoc>("Profile", profileSchema)) as Model<ProfileDoc>;
+export const Profile = defineModel<ProfileDoc>("Profile", profileSchema);

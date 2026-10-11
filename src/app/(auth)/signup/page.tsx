@@ -1,15 +1,16 @@
 import type { Metadata } from "next";
 
 import { handleSchema } from "@/lib/validation";
-import { DEFAULT_AFTER_AUTH, safeNextPath } from "@/lib/safe-redirect";
 import { SignUpForm } from "@/components/auth/sign-up-form";
+
+const ONBOARDING_PATH = "/onboarding";
 
 export const metadata: Metadata = { title: "Sign up" };
 
 export default async function SignUpPage({
   searchParams,
 }: PageProps<"/signup">) {
-  const { next, handle } = await searchParams;
+  const { handle } = await searchParams;
 
   return (
     <>
@@ -21,20 +22,18 @@ export default async function SignUpPage({
           Just an email and a password. You’ll pick your link next.
         </p>
       </div>
-      <SignUpForm next={afterSignUp(next, handle)} />
+      <SignUpForm next={afterSignUp(handle)} />
     </>
   );
 }
 
 /**
- * An explicit `next` wins. Otherwise a handle claimed on the landing page is
- * carried to the dashboard so onboarding can prefill it — signup itself
- * doesn't ask for one.
+ * A new account has no username yet, so it always goes to onboarding next
+ * (the proxy would send it there anyway). A handle claimed on the landing
+ * page rides along so onboarding can prefill it.
  */
-function afterSignUp(next: unknown, handle: unknown): string {
-  if (typeof next === "string") return safeNextPath(next);
-
+function afterSignUp(handle: unknown): string {
   const parsed = handleSchema.safeParse(handle);
-  if (!parsed.success) return DEFAULT_AFTER_AUTH;
-  return `${DEFAULT_AFTER_AUTH}?handle=${encodeURIComponent(parsed.data)}`;
+  if (!parsed.success) return ONBOARDING_PATH;
+  return `${ONBOARDING_PATH}?handle=${encodeURIComponent(parsed.data)}`;
 }

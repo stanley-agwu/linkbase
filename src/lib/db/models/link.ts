@@ -1,5 +1,7 @@
 import "server-only";
-import mongoose, { Schema, type Model, type Types } from "mongoose";
+import { Schema, type Types } from "mongoose";
+
+import { defineModel } from "./define-model";
 
 export interface LinkDoc {
   _id: Types.ObjectId;
@@ -42,5 +44,4 @@ const linkSchema = new Schema<LinkDoc>(
 linkSchema.index({ userId: 1, order: 1 });
 linkSchema.index({ profileId: 1, visible: 1, order: 1 });
 
-export const Link = (mongoose.models.Link ??
-  mongoose.model<LinkDoc>("Link", linkSchema)) as Model<LinkDoc>;
+export const Link = defineModel<LinkDoc>("Link", linkSchema);
