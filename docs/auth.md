@@ -4,7 +4,7 @@ NextAuth (Auth.js) handles sign-in, sessions, and the security plumbing that goe
 
 Depends on `database.md` (the `userId` scoping rule is the third layer here) and `architecture.md` (where files go). Undecided items are marked **TBD**.
 
-> Not installed yet: `npm i next-auth`. This doc is the target shape, not current code.
+> **Implemented** with `next-auth@5.0.0-beta.32` (pinned — v5 is still beta), credentials only. The config is split: `src/auth.config.ts` (no providers, no DB — imported by `proxy.ts`) and `src/auth.ts` (adds the credentials provider; imported as `@/auth`). Both live in `src/`, not the project root, because `@/*` resolves there. Server Actions: `signUp`, `logIn`, `logOut` in `src/lib/auth/actions.ts`. Google OAuth is not built yet.
 
 ---
 
@@ -53,11 +53,11 @@ Providers, per `ui.md` §2.3: email + password, and Google.
 
 A credentials provider constrains this — **it requires the JWT session strategy**; database sessions aren't available for credential sign-ins even with an adapter configured. So: JWT sessions, with the user id in the token, and `userId` on every row (`database.md` §4) as the durable link to data.
 
-Consequence worth knowing: a JWT session can't be revoked server-side before it expires. Sign-out clears the cookie, but a stolen token stays valid until expiry. That argues for a short session lifetime and, if we ever need real revocation, a `sessionVersion` on the user that the `jwt` callback checks. Session lifetime: **TBD**.
+Consequence worth knowing: a JWT session can't be revoked server-side before it expires. Sign-out clears the cookie, but a stolen token stays valid until expiry. That argues for a short session lifetime and, if we ever need real revocation, a `sessionVersion` on the user that the `jwt` callback checks. Session lifetime: **7 days**, rolled forward at most once a day of activity (`maxAge` / `updateAge` in `auth.config.ts`).
 
 If we add the `@auth/mongodb-adapter` (for OAuth account linking or verification tokens), note it takes a raw `MongoClient`, not a Mongoose connection. Don't open a second pool for it — reuse Mongoose's underlying client via `mongoose.connection.getClient()` after `connectToDatabase()`, so the single cached connection in `database.md` §2 stays single. Whether we need the adapter at all: **TBD**.
 
-Password hashing (bcrypt or argon2, and the cost factor): **TBD** — but it happens in the credentials provider's `authorize`, and the hash never leaves the server.
+Password hashing: **argon2id** via `@node-rs/argon2` (`lib/auth/password.ts`) at OWASP's baseline — 19 MiB, 2 iterations, 1 lane. Verification happens in the credentials provider's `authorize`, and the hash never leaves `lib/db` except into it (`passwordHash` is `select: false`). An unknown email is verified against a dummy hash so response time doesn't reveal which emails have accounts. Sign-up does say "An account with this email already exists" — the accepted enumeration trade-off until email verification exists.
 
 ---
 
@@ -270,14 +270,14 @@ New action:
 
 ## 7. Not decided yet
 
-| Item                                                             | Status                                                      |
-| ---------------------------------------------------------------- | ----------------------------------------------------------- |
-| Session lifetime and refresh behaviour                           | **TBD**                                                     |
-| Password hashing algorithm and cost                              | **TBD**                                                     |
-| Email verification flow                                          | **TBD**                                                     |
-| Password reset flow                                              | **TBD**                                                     |
-| Rate limiting on sign-in, signup, and handle-availability checks | **TBD** — none today; sign-in is brute-forceable without it |
-| Whether the MongoDB adapter is needed                            | **TBD** (§1)                                                |
-| Server-side session revocation                                   | **TBD** — not possible with JWT sessions as specified       |
-| Account deletion / data export                                   | **TBD**                                                     |
-| Content Security Policy                                          | **TBD**                                                     |
+| Item                                                             | Status                                                                 |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Session lifetime and refresh behaviour                           | **Settled** — 7 days, `updateAge` 1 day (§1)                           |
+| Password hashing algorithm and cost                              | **Settled** — argon2id, 19 MiB / t=2 / p=1 (§1)                        |
+| Email verification flow                                          | **TBD**                                                                |
+| Password reset flow                                              | **TBD**                                                                |
+| Rate limiting on sign-in, signup, and handle-availability checks | sign-in and sign-up **done** (`security.md` §3); handle checks **TBD** |
+| Whether the MongoDB adapter is needed                            | **TBD** (§1)                                                           |
+| Server-side session revocation                                   | **TBD** — not possible with JWT sessions as specified                  |
+| Account deletion / data export                                   | **TBD**                                                                |
+| Content Security Policy                                          | **TBD**                                                                |
