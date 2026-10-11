@@ -86,12 +86,13 @@ Every query function starts with `await connectToDatabase()`. It's a no-op after
 
 ### Model registration
 
-Re-evaluating a model file calls `mongoose.model()` again and throws `OverwriteModelError`. Every model is registered through the existing-model check:
+Every model is registered through `defineModel` (`models/define-model.ts`):
 
 ```ts
-export const Link = (mongoose.models.Link ??
-  mongoose.model<LinkDoc>("Link", linkSchema)) as Model<LinkDoc>;
+export const Link = defineModel<LinkDoc>("Link", linkSchema);
 ```
+
+Re-evaluating a model file calls `mongoose.model()` again, which throws `OverwriteModelError` if the name is already registered. Mongoose's registry also outlives a hot reload. So the common `mongoose.models.Link ?? mongoose.model(...)` guard avoids the error by reusing the model compiled when the dev server started. A field added to the schema since then is "not in schema" (a `StrictModeError` under `strictQuery: "throw"`), and its index is never built. In development, `defineModel` deletes the old registration and compiles the current schema; in production, where a model file runs once, it reuses the existing one.
 
 ### Environment
 
@@ -109,6 +110,7 @@ Development runs against a **MongoDB Atlas** cluster (database `linkbase`); copy
 src/lib/db/
   index.ts          # public surface — the only thing features import
   connect.ts        # the cached connection helper
+  models/define-model.ts  # model registration that survives hot reload
   cache-tags.ts     # cacheTags — every cache tag name, built in one place
   models/
     user.ts
@@ -149,22 +151,25 @@ Every schema, without exception:
 
 Field lists follow the UI in `ui.md` (§1.21, §2.4, §2.5). Types for the app live in `lib/types`; the document interfaces live beside their schema.
 
-**`user.ts`** — the account: `email` (required, lowercase, trimmed, unique, ≤ 254), `passwordHash` (argon2id, `select: false` — only `findUserForSignIn` asks for it), `name` (optional, ≤ 60), `emailVerifiedAt` (`null` until the verification flow exists). No handle: signup asks for email and password only, and the handle lives on the `Profile` claimed afterwards. A user's `_id` is the `userId` every other collection is scoped by.
+**`user.ts`** — the account: `email` (required, lowercase, trimmed, unique, ≤ 254), `passwordHash` (argon2id, `select: false` — only `findUserForSignIn` asks for it), `name` (optional, ≤ 60), `username`, `emailVerifiedAt` (`null` until the verification flow exists). A user's `_id` is the `userId` every other collection is scoped by.
+
+`username` is the handle, and the user's public URL (`/user/[handle]`). Signup asks for email and password only; the username is chosen once, during onboarding (`setUsername`, which only matches while none is set), and is absent until then. Its index is `unique` **and** `sparse`, so accounts that haven't chosen one don't collide on a missing value, and it's the index the public page looks users up by. Stored lowercase against a lowercase-only pattern, so uniqueness is case-insensitive without a collation index. Pattern and length come from `handleSchema` in `lib/validation/fields.ts` (lowercase letters, digits, `-` and `_`, 3–30 characters — `errors-and-validation.md` §8); change them together. Reserved usernames live in `RESERVED_HANDLES` beside `handleSchema`, matched exactly after trimming and lowercasing (so `admin1` stays available). It holds `admin` today; add a name there and every path that validates a username refuses it.
 
 `findUserForSignIn(email)` is the one user read keyed by something other than a session id — it runs _before_ a session exists, from the credentials provider only.
 
 **`rate-limit.ts`** — fixed-window counters for `security.md` §3: `key` (unique), `count`, `expiresAt` with a TTL index. `consumeRateLimit` is a single atomic pipeline upsert that also resets a window the TTL monitor hasn't reaped yet.
 
-**`profile.ts`** — one per user: `userId` (unique — one profile per account), `handle`, `displayName`, `bio`, `theme`, `socials`, `published`.
+**`profile.ts`** — one per user: `userId` (unique — one profile per account), `displayName`, `bio`, `theme`, `socials`, `published`. No handle: the public URL is the owner's `User.username`, so the public read finds the user by username, then the profile by `userId`.
 
 ```ts
 import "server-only";
-import mongoose, { Schema, type Model, type Types } from "mongoose";
+import { Schema, type Types } from "mongoose";
+
+import { defineModel } from "./define-model";
 
 export interface ProfileDoc {
   _id: Types.ObjectId;
   userId: Types.ObjectId;
-  handle: string;
   displayName: string;
   bio?: string;
   themeId: string;
@@ -182,17 +187,6 @@ const profileSchema = new Schema<ProfileDoc>(
       unique: true,
       index: true,
     },
-    handle: {
-      type: String,
-      required: true,
-      unique: true,
-      index: true,
-      lowercase: true,
-      trim: true,
-      minlength: 3,
-      maxlength: 24,
-      match: /^[a-z0-9._]+$/,
-    },
     displayName: { type: String, required: true, trim: true, maxlength: 60 },
     bio: { type: String, trim: true, maxlength: 160 },
     themeId: { type: String, required: true, default: "default" },
@@ -201,11 +195,8 @@ const profileSchema = new Schema<ProfileDoc>(
   { strict: true, strictQuery: "throw", timestamps: true, versionKey: false },
 );
 
-export const Profile = (mongoose.models.Profile ??
-  mongoose.model<ProfileDoc>("Profile", profileSchema)) as Model<ProfileDoc>;
+export const Profile = defineModel<ProfileDoc>("Profile", profileSchema);
 ```
-
-`handle` is stored lowercase (`lowercase: true`) and matched against a lowercase-only pattern, so uniqueness is genuinely case-insensitive without a collation index. The reserved-handle list (`app`, `api`, `login`, `admin`, …) is enforced in `handleSchema` (`lib/validation`): **TBD** — needs a list before it can be written. The pattern and length match `handleSchema` in `lib/validation/fields.ts` (lowercase letters, digits, `.` and `_`, 3–24 characters — `errors-and-validation.md` §8); change them together.
 
 **`link.ts`** — the rows in the editor: `userId`, `profileId`, `title`, `url`, `visible`, `order`, `clickCount`. Indexes: `userId`, plus compound `{ userId: 1, order: 1 }` for the ordered list read, and `{ profileId: 1, visible: 1, order: 1 }` for the public page.
 
@@ -263,8 +254,13 @@ Public profile pages are read by handle, by visitors with no session, through `g
 async function readPublicPage(handle: string): Promise<PublicPage | null> {
   await connectToDatabase();
 
-  const profile = await Profile.findOne({ handle, published: true })
-    .select("handle displayName bio themeId")
+  // The handle is the owner's username (database.md §4): user first, then
+  // their profile. Only the _id leaves the user read.
+  const owner = await User.findOne({ username: handle }).select("_id").lean();
+  if (!owner) return null;
+
+  const profile = await Profile.findOne({ userId: owner._id, published: true })
+    .select("displayName bio themeId")
     .lean();
   if (!profile) return null;
 

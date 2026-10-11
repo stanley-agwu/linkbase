@@ -77,7 +77,7 @@ The signature conversion control: `linkbase.me/` prefix + input + `lg` primary b
 
 **Props:** `value`, `onChange`, `onSubmit`, `prefix` (`linkbase.me/`), `placeholder` (`yourname`), `buttonLabel` (`Claim your link`), `message`, `status`, `inverse`.
 
-**Input sanitising:** lowercase, `[a-z0-9._]` only, max 24 chars — applied on change by `sanitizeHandle` from `lib/validation`, which shares its rule with `handleSchema` (minimum 3 characters, checked on submit). This is the canonical handle rule (`errors-and-validation.md` §8).
+**Input sanitising:** lowercase, `[a-z0-9_-]` only, max 30 chars — applied on change by `sanitizeHandle` from `lib/validation`, which shares its rule with `handleSchema` (minimum 3 characters, checked on submit). This is the canonical handle rule (`errors-and-validation.md` §8).
 
 **States**
 
@@ -445,6 +445,8 @@ A11y: value is shown as text, so the bar can be `aria-hidden`. Animated fill: **
 Templates page: same gallery standalone (transparent bg, H2 `clamp(44px,6vw,80px)`, padding 72/24/96).
 
 ### 2.3 Signup onboarding (4 steps)
+
+> **As built:** account creation comes first (`/signup`, email and password), then **one** onboarding step at `/onboarding`: the username, in a `linkbase.me/` field with a debounced availability check. When the name is taken, the message reads "linkbase.me/x is taken. Try one of these:" followed by up to three free alternatives as `soft` `sm` buttons that fill the field (`lib/username-suggestions.ts` proposes them, `filterAvailableUsernames` keeps the free ones). It uses the logo bar and the 540px column, with no step counter or Back button. Every protected route redirects there until a username is set (`auth.md` §4). Steps 3–4 aren't built yet.
 
 - Full-height column, padding 32/24.
 - Top bar: `max-w-[1240px]`, space-between — `Logo size={22}` + "Step N of 4" (14px muted).
