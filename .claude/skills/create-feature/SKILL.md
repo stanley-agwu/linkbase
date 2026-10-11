@@ -27,6 +27,7 @@ The plan's **Files** table is the scope. Build what it lists; if something has t
 1. Read every `docs/` file listed under the plan's **Docs followed**. Always include `docs/architecture.md` and `docs/coding-standards.md`, plus `docs/database.md` if the feature touches data.
 2. For every library the code uses (Next.js, Mongoose, NextAuth, Zod, …), pull current docs through Context7 before writing code against it, as `CLAUDE.md` requires. Don't rely on memory for API signatures, config, or version-specific behavior. If Context7 has no entry for a library, or isn't connected, say so before continuing.
 3. For Next.js, also read the matching guide under `node_modules/next/dist/docs/`.
+4. For React components, pages, and data fetching, load the `vercel-react-best-practices` skill and apply its rules. Where a rule conflicts with `/docs` (e.g. SWR client fetching or API routes vs. Server Components reading `lib/db` directly), `/docs` wins.
 
 ## 3. Build
 

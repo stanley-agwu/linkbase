@@ -33,7 +33,7 @@ Then read every feature-area doc the feature touches:
 
 If a doc lists an open conflict that affects this feature (e.g. `errors-and-validation.md` §8, `routing.md` §7), raise it in the plan rather than silently picking a side.
 
-For any library API the plan relies on (Next.js, Mongoose, NextAuth, Zod, …), check current docs through Context7 per `CLAUDE.md`, and read the matching guide under `node_modules/next/dist/docs/` for Next.js specifics.
+For any library API the plan relies on (Next.js, Mongoose, NextAuth, Zod, …), check current docs through Context7 per `CLAUDE.md`, and read the matching guide under `node_modules/next/dist/docs/` for Next.js specifics. For anything with React components, pages, or data fetching, load the `vercel-react-best-practices` skill and let its rules shape the approach — `/docs` wins where the two conflict.
 
 Look at the existing code too, so the plan extends what's there instead of duplicating it.
 
