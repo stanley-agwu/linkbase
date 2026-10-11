@@ -4,7 +4,7 @@ MongoDB via Mongoose. Mongoose owns the schema, validation, and the connection p
 
 Structure and import rules come from `architecture.md` — this doc is the `lib/db` half of it in detail. Anything undecided is marked **TBD**.
 
-> **Mongoose 9** is installed. In the repo: `lib/db/connect.ts`, `lib/db/index.ts`, and the `Profile`, `Link` and `Click` models. Not yet: the `User` model (waits for the auth adapter), `cache-tags.ts`, and the query functions — they arrive with the features that use them. Sections describing those are still the target shape.
+> **Mongoose 9** is installed. In the repo: `lib/db/connect.ts`, `lib/db/index.ts`, the `User`, `Profile`, `Link`, `Click` and `RateLimit` models, and `queries/user.ts` + `queries/rate-limit.ts`. Not yet: `cache-tags.ts` and the profile/link query functions — they arrive with the features that use them. Sections describing those are still the target shape.
 
 ---
 
@@ -149,7 +149,11 @@ Every schema, without exception:
 
 Field lists follow the UI in `ui.md` (§1.21, §2.4, §2.5). Types for the app live in `lib/types`; the document interfaces live beside their schema.
 
-**`user.ts`** — the account. `email` (required, lowercase, unique), auth provider fields (**TBD**, depends on the auth decision in `architecture.md`). A user's `_id` is the `userId` every other collection is scoped by.
+**`user.ts`** — the account: `email` (required, lowercase, trimmed, unique, ≤ 254), `passwordHash` (argon2id, `select: false` — only `findUserForSignIn` asks for it), `name` (optional, ≤ 60), `emailVerifiedAt` (`null` until the verification flow exists). No handle: signup asks for email and password only, and the handle lives on the `Profile` claimed afterwards. A user's `_id` is the `userId` every other collection is scoped by.
+
+`findUserForSignIn(email)` is the one user read keyed by something other than a session id — it runs _before_ a session exists, from the credentials provider only.
+
+**`rate-limit.ts`** — fixed-window counters for `security.md` §3: `key` (unique), `count`, `expiresAt` with a TTL index. `consumeRateLimit` is a single atomic pipeline upsert that also resets a window the TTL monitor hasn't reaped yet.
 
 **`profile.ts`** — one per user: `userId` (unique — one profile per account), `handle`, `displayName`, `bio`, `theme`, `socials`, `published`.
 

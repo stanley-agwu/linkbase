@@ -23,7 +23,7 @@ There is no test runner configured yet. If you add one, document the single-test
 
 ## State of the repo
 
-LinkBase is a freshly scaffolded `create-next-app` project — only `src/app/{layout,page}.tsx` and `globals.css` exist. There is no feature code, no `src/components`, `src/lib`, API routes, or data layer yet. Expect to create those directories rather than find them, and keep `@/*` (→ `./src/*`) imports rather than relative traversal.
+Built so far: the marketing landing page (`app/(marketing)`), the design tokens and `components/{ui,marketing,profile}`, the Mongoose data layer (`lib/db`), Zod schemas and `ActionResult` (`lib/validation`), and credentials auth — NextAuth v5 in `src/auth.ts` / `src/auth.config.ts`, `src/proxy.ts`, `lib/auth`, `app/(auth)` (`/login`, `/signup`), a placeholder `app/(dashboard)/dashboard`, and the header account menu (`components/auth`). Keep `@/*` (→ `./src/*`) imports rather than relative traversal.
 
 ## Stack specifics that affect how you write code
 
@@ -39,6 +39,24 @@ LinkBase is a freshly scaffolded `create-next-app` project — only `src/app/{la
 Before writing code that uses Next.js, Mongoose, NextAuth, Zod, or any other library, pull the current docs for it through Context7 first. Do not rely on training data for API signatures, config options, or version-specific behavior — check them against the docs Context7 returns for the version this repo has installed.
 
 If Context7 has no entry for a library, say so before proceeding, so it's clear the code that follows isn't backed by live docs.
+
+## Skills
+
+Project skills live in `.claude/skills/`. Third-party ones are recorded in `skills-lock.json` (source + hash) and stored as real files, not symlinks.
+
+- `plan-feature` — plans a feature before any code; saves it to `plans/<branch>.md`.
+- `create-feature` — builds an approved plan.
+- `vercel-react-best-practices` — Vercel's React/Next.js performance rules (`rules/*.md`, full text in `AGENTS.md`). Load it whenever writing, reviewing, or refactoring components, pages, layouts, Server Actions, or data reads — `plan-feature` and `create-feature` both do. Apply the CRITICAL and HIGH categories (`async-`, `bundle-`, `server-`) by default.
+
+`/docs` wins where a rule conflicts with this repo's conventions. Known conflicts:
+
+| Rule                                | Here instead                                                                                                                                  |
+| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `client-swr-dedup`                  | no client-side fetching — Server Components read `lib/db` and pass props (`data-fetching.md`)                                                 |
+| `async-api-routes`                  | no API routes for our own data — Server Actions (`routing.md` §6); the await-late advice still applies inside them                            |
+| `async-dependencies` (`better-all`) | no new dependency for this — plain `Promise.all` (`coding-standards.md` §6)                                                                   |
+| `server-cache-lru`                  | no in-process cross-request cache — `unstable_cache` with tags (`data-fetching.md`)                                                           |
+| `bundle-barrel-imports`             | `@/lib/db` and `@/lib/validation` are the required entry points (`database.md` §3); the rule applies to third-party barrels and `components/` |
 
 ## Doc Convention
 

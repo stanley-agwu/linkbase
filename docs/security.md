@@ -4,7 +4,7 @@ Secrets, response headers, rate limiting, and the handling of user-generated con
 
 Scope: the measures that protect the app and its visitors. `auth.md` owns identity and access control — who a request is, and which routes and rows they may touch — and is the larger half of security in this app; this doc covers everything around it. `errors-and-validation.md` owns input validation and what may leak through an error message, `data-mutations.md` the write path. Anything undecided is marked **TBD**.
 
-> **Partly implemented.** Done: §1.1's `.gitignore` negation and `.env.example` (with `MONGODB_URI`), and `ProfileLink` (preview-only so far). Not yet: `next.config.ts` has no `headers()` (§2.1 is the next thing to do), no CSP, no rate limiter, and no real profile links.
+> **Partly implemented.** Done: §1.1's `.gitignore` negation and `.env.example` (with `MONGODB_URI`), and `ProfileLink` (preview-only so far). Sign-in and sign-up rate limits (§3). Not yet: `next.config.ts` has no `headers()` (§2.1 is the next thing to do), no CSP, no limits on the other endpoints in §3, and no real profile links.
 
 ---
 
@@ -154,7 +154,7 @@ Testing: headers don't appear in `next dev` the same way they do in a real respo
 
 ## 3. Rate limiting
 
-Nothing is rate limited today. Every item here is **TBD** as to implementation, but the targets and the reasons are not:
+**Implemented for sign-in and sign-up**, with counters in MongoDB (`RateLimit` model, TTL index; `consumeRateLimit` in `lib/db`). Sign-in: 5 per email and 20 per IP per 15 minutes, checked inside the credentials provider's `authorize` so a direct POST to `/api/auth/callback/credentials` is limited too. Sign-up: 5 per IP per hour, in the `signUp` action. Both are checked before any argon2 work. The IP is the first `x-forwarded-for` hop, which is only trustworthy behind a proxy that overwrites the header — confirm that for the production host. The other rows remain **TBD**:
 
 | Endpoint                                    | Why it needs a limit                                                                                                    | Suggested shape            |
 | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------- |
@@ -257,7 +257,7 @@ Changing headers or limits:
 | CSP: nonce-based (dynamic) vs. static, and the cached public page | **TBD** — §2.2, blocks both CSP and the public-page cache     |
 | CSP violation reporting destination                               | **TBD** — §2.2                                                |
 | How profile theme colours are applied without `'unsafe-inline'`   | **TBD** — §2.2                                                |
-| Rate limiter: storage and library                                 | **TBD** — §3                                                  |
+| Rate limiter: storage and library                                 | **Settled** — MongoDB TTL counters, no library (§3)           |
 | Maximum links per profile                                         | **TBD** — §3                                                  |
 | Bot filtering on click recording                                  | **TBD** — `database.md` §5                                    |
 | Reserved-handle list                                              | **TBD** — `database.md` §4                                    |
