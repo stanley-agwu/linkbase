@@ -29,3 +29,10 @@ export type ProfileTemplate = ProfileTheme & {
   bio: string;
   links: string[];
 };
+
+/** The signed-in account as the app sees it — never the password hash. */
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string | null;
+};

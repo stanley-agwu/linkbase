@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import { ButtonLink } from "./button";
 import { Logo } from "./logo";
 import { NavMenu } from "./nav-menu";
 
@@ -11,11 +10,18 @@ const NAV_LINKS = [
   { label: "Learn", href: "#" },
 ];
 
+type NavBarProps = {
+  /** The account controls at the end of the bar (Log in / Sign up, or the user menu). */
+  actions: React.ReactNode;
+  /** Extra controls at the bottom of the mobile drawer. */
+  drawerActions?: React.ReactNode;
+};
+
 /**
  * Marketing nav. The floating pill shows at 1100px and up; below that the
  * compact bar with a menu drawer takes over (the design's breakpoints).
  */
-export function NavBar() {
+export function NavBar({ actions, drawerActions }: NavBarProps) {
   return (
     <>
       <header className="sticky top-4 z-10 mt-4 hidden px-6 min-[1100px]:block">
@@ -33,17 +39,15 @@ export function NavBar() {
               </Link>
             ))}
           </div>
-          <div className="flex gap-2">
-            <ButtonLink href="/login" variant="soft">
-              Log in
-            </ButtonLink>
-            <ButtonLink href="/signup" variant="dark">
-              Sign up free
-            </ButtonLink>
-          </div>
+          {actions}
         </nav>
       </header>
-      <NavMenu logo={<Logo size={22} />} links={NAV_LINKS} />
+      <NavMenu
+        logo={<Logo size={22} />}
+        links={NAV_LINKS}
+        actions={actions}
+        drawerActions={drawerActions}
+      />
     </>
   );
 }

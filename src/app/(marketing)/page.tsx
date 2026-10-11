@@ -1,5 +1,7 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 
+import { HeaderAccount } from "@/components/auth/header-account";
 import { CtaPanel } from "@/components/marketing/cta-panel";
 import { Eyebrow } from "@/components/marketing/eyebrow";
 import { FeatureCard } from "@/components/marketing/feature-card";
@@ -75,7 +77,22 @@ export default function LandingPage() {
         Scheduling is here. Queue a link for Friday at 9am and it goes live on
         its own.
       </Banner>
-      <NavBar />
+      <NavBar
+        actions={
+          // Sized like the controls it stands in for, so nothing shifts when
+          // the session resolves.
+          <Suspense
+            fallback={<span aria-hidden="true" className="h-11 w-11" />}
+          >
+            <HeaderAccount />
+          </Suspense>
+        }
+        drawerActions={
+          <Suspense fallback={null}>
+            <HeaderAccount placement="drawer" />
+          </Suspense>
+        }
+      />
 
       <main className="flex-1">
         <Hero />
