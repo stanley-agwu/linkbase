@@ -41,8 +41,10 @@ export function ProfilePhone({
         {bio}
       </div>
       <div className="mt-3 flex w-full flex-col gap-2">
-        {links.map((link) => (
-          <ProfileLink key={link} theme={theme} size="sm">
+        {/* Titles can repeat (two "Instagram" links), so they can't be the
+            key. The rows are stateless, so position is a safe one. */}
+        {links.map((link, index) => (
+          <ProfileLink key={index} theme={theme} size="sm">
             {link}
           </ProfileLink>
         ))}
