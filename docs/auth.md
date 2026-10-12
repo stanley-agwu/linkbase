@@ -178,7 +178,7 @@ Route group naming: the protected group is `(dashboard)` and the public profile 
 
 ### The public profile
 
-`/user/[handle]` is rendered with no session, for visitors who have none. Per `database.md` §5 it's the one unscoped read, and it must project only what the page shows: display name, bio, theme, and visible links. Never `userId`, never the email, never an unpublished profile. A field added to the profile schema is not public until it's deliberately added to that projection.
+`/user/[handle]` is rendered with no session, for visitors who have none. Per `database.md` §5 it's the one unscoped read, and it must project only what the page shows: username, display name, bio, appearance, and visible links. Never `userId`, never the email. A page is live once its owner has a username; there is no publish gate. A field added to the profile schema is not public until it's deliberately added to that projection.
 
 ---
 

@@ -12,15 +12,17 @@ The URL map, the route groups behind it, and which file conventions each segment
 
 ## 1. The route map
 
-| URL              | File                               | Access            | Renders (`ui.md`) |
-| ---------------- | ---------------------------------- | ----------------- | ----------------- |
-| `/`              | `(marketing)/page.tsx`             | **public**        | §2.2 landing      |
-| `/login`         | `(auth)/login/page.tsx`            | **public**        | §2.3              |
-| `/signup`        | `(auth)/signup/page.tsx`           | **public**        | §2.3 onboarding   |
-| `/onboarding`    | `(onboarding)/onboarding/page.tsx` | **authenticated** | §2.3 username     |
-| `/dashboard`     | `(dashboard)/dashboard/page.tsx`   | **authenticated** | §2.4              |
-| `/user/[handle]` | `user/[handle]/page.tsx`           | **public**        | §2.5 profile      |
-| `/api/auth/*`    | `api/auth/[...nextauth]/route.ts`  | public            | — (NextAuth)      |
+| URL                     | File                                        | Access            | Renders (`ui.md`) |
+| ----------------------- | ------------------------------------------- | ----------------- | ----------------- |
+| `/`                     | `(marketing)/page.tsx`                      | **public**        | §2.2 landing      |
+| `/login`                | `(auth)/login/page.tsx`                     | **public**        | §2.3              |
+| `/signup`               | `(auth)/signup/page.tsx`                    | **public**        | §2.3 onboarding   |
+| `/onboarding`           | `(onboarding)/onboarding/page.tsx`          | **authenticated** | §2.3 username     |
+| `/onboarding/look`      | `(onboarding)/onboarding/look/page.tsx`     | **authenticated** | §2.3 pick a look  |
+| `/dashboard`            | `(dashboard)/dashboard/page.tsx`            | **authenticated** | §2.4              |
+| `/dashboard/appearance` | `(dashboard)/dashboard/appearance/page.tsx` | **authenticated** | §2.4 appearance   |
+| `/user/[handle]`        | `user/[handle]/page.tsx`                    | **public**        | §2.5 profile      |
+| `/api/auth/*`           | `api/auth/[...nextauth]/route.ts`           | public            | — (NextAuth)      |
 
 Unauthenticated requests to a protected route are redirected to `/login` with the original path preserved in `?next=`, so sign-in can return the user there (`auth.md` §4 — validate that param on use, or you've built an open redirect).
 
@@ -71,30 +73,40 @@ src/
         page.tsx                  # /signup
 
     (onboarding)/
-      layout.tsx                  # logo bar, narrow column
+      layout.tsx                  # logo bar; each step sets its column
       error.tsx
       onboarding/
         page.tsx                  # /onboarding — choose a username
         _actions.ts               # chooseUsername, checkUsernameAvailability
         _components/
           username-form.tsx
+        look/
+          page.tsx                # /onboarding/look — pick a theme
+          _actions.ts             # chooseLook
+          _components/
+            look-form.tsx
 
     (dashboard)/
       layout.tsx                  # sidebar shell (drawer below lg)
-      _components/                # dashboard-sidebar, sidebar-drawer
+      _components/                # dashboard-sidebar, sidebar-drawer, sidebar-nav
       loading.tsx
       error.tsx
       dashboard/
+        layout.tsx                # live preview beside every dashboard page
         page.tsx                  # /dashboard — the links list
-        _actions.ts               # createLink, updateLink, deleteLink
-        _components/              # add-link dialog, link rows, delete confirm
+        _actions.ts               # createLink, updateLink, deleteLink, updateProfile
+        _components/              # header, add-link and edit-profile dialogs, link rows
+        appearance/
+          page.tsx                # /dashboard/appearance — theme, shape, font
+          _actions.ts             # updateAppearance
+          _components/
 
     user/
       [handle]/
         page.tsx                  # /user/[handle]
         loading.tsx
         error.tsx
-        not-found.tsx             # unknown or unpublished handle
+        not-found.tsx             # unknown or malformed handle
 
     api/
       auth/
@@ -202,23 +214,21 @@ Webhooks are also not a place for `revalidatePath` to be forgotten — an inboun
 
 This route map was specified after `ui.md`, `architecture.md`, and `auth.md`, and it contradicts all three in small ways. Flagging rather than silently resolving:
 
-| Conflict                                                                                                                                                                                                                                                                                                                                                                                        | Resolution                                                    |
-| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Conflict                                                                                                                                                                                                                                                                                                                                                                                        | Resolution                                                                                                                                          |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `ui.md` §2.4 designs the dashboard as **one page with three sidebar tabs** (Links · Appearance · Analytics) plus a live preview pane. This map makes `/add-links` a **separate route**, which splits the add-link form away from that shell. **Settled** — links are managed on `/dashboard` (add dialog, inline edit) and `/add-links` is gone. The sidebar tabs and preview aren't built yet. |
-| `architecture.md` §2's tree shows `(dashboard)/editor/page.tsx`                                                                                                                                                                                                                                                                                                                                 | superseded by `/dashboard`; that tree needs updating          |
-| `auth.md` §4 describes `(dashboard)/*` as "editor, appearance, analytics"                                                                                                                                                                                                                                                                                                                       | superseded by this table; the access rule itself is unchanged |
-| Are Appearance and Analytics routes (`/appearance`, `/analytics`) or tabs?                                                                                                                                                                                                                                                                                                                      | **TBD** — same decision as the first row                      |
+| `architecture.md` §2's tree shows `(dashboard)/editor/page.tsx`                                                                                                                                                                                                                                                                                                                                 | superseded by `/dashboard`; that tree needs updating                                                                                                |
+| `auth.md` §4 describes `(dashboard)/*` as "editor, appearance, analytics"                                                                                                                                                                                                                                                                                                                       | superseded by this table; the access rule itself is unchanged                                                                                       |
+| Are Appearance and Analytics routes (`/appearance`, `/analytics`) or tabs?                                                                                                                                                                                                                                                                                                                      | **Settled** — routes under the dashboard: `/dashboard/appearance` (built) and `/dashboard/analytics`, sharing `dashboard/layout.tsx`'s live preview |
 
 ---
 
 ## 8. Not decided yet
 
-| Item                                                                   | Status                                                                |
-| ---------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Whether Appearance and Analytics are routes or tabs                    | **TBD** (§7) — blocks the `(dashboard)` sidebar                       |
-| Whether the remaining onboarding steps (theme, quick links) get routes | **TBD** — only the username step exists, at `/onboarding`             |
-| `/templates` page (`ui.md` §2.2 mentions a standalone gallery)         | **TBD** — not in the map above                                        |
-| Whether the landing page needs `(marketing)/layout.tsx`                | **TBD** — only if a second marketing page lands                       |
-| First webhook provider and its signature scheme                        | **TBD** (§6)                                                          |
-| `/user/[handle]` metadata and OG image generation                      | **TBD** — `opengraph-image.tsx` would live in that segment            |
-| Which names besides `admin` to reserve                                 | **TBD** — the list is `RESERVED_HANDLES` (`lib/validation/fields.ts`) |
+| Item                                                           | Status                                                                |
+| -------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `/templates` page (`ui.md` §2.2 mentions a standalone gallery) | **TBD** — not in the map above                                        |
+| Whether the landing page needs `(marketing)/layout.tsx`        | **TBD** — only if a second marketing page lands                       |
+| First webhook provider and its signature scheme                | **TBD** (§6)                                                          |
+| `/user/[handle]` metadata and OG image generation              | **TBD** — `opengraph-image.tsx` would live in that segment            |
+| Which names besides `admin` to reserve                         | **TBD** — the list is `RESERVED_HANDLES` (`lib/validation/fields.ts`) |

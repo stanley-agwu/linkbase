@@ -4,7 +4,7 @@ MongoDB via Mongoose. Mongoose owns the schema, validation, and the connection p
 
 Structure and import rules come from `architecture.md` — this doc is the `lib/db` half of it in detail. Anything undecided is marked **TBD**.
 
-> **Mongoose 9** is installed. In the repo: `lib/db/connect.ts`, `lib/db/index.ts`, the `User`, `Profile`, `Link`, `Click` and `RateLimit` models, and `queries/user.ts`, `queries/link.ts` + `queries/rate-limit.ts`. Not yet: `cache-tags.ts` and the profile query functions — they arrive with the features that use them. Sections describing those are still the target shape.
+> **Mongoose 9** is installed. In the repo: `lib/db/connect.ts`, `lib/db/index.ts`, the `User`, `Profile`, `Link`, `Click` and `RateLimit` models, `cache-tags.ts`, and `queries/user.ts`, `queries/link.ts`, `queries/profile.ts`, `queries/public-page.ts` + `queries/rate-limit.ts`.
 
 ---
 
@@ -159,44 +159,9 @@ Field lists follow the UI in `ui.md` (§1.21, §2.4, §2.5). Types for the app l
 
 **`rate-limit.ts`** — fixed-window counters for `security.md` §3: `key` (unique), `count`, `expiresAt` with a TTL index. `consumeRateLimit` is a single atomic pipeline upsert that also resets a window the TTL monitor hasn't reaped yet.
 
-**`profile.ts`** — one per user: `userId` (unique — one profile per account), `displayName`, `bio`, `theme`, `socials`, `published`. No handle: the public URL is the owner's `User.username`, so the public read finds the user by username, then the profile by `userId`.
+**`profile.ts`** — at most one per user: `userId` (unique), optional `displayName` (≤ 60) and `bio` (≤ 160), and the Appearance choices `themeId` (one of `THEME_IDS`, default `"kiln"`), `buttonShape` and `font` (each default `"template"`). The enums and limits come from `lib/validation/profile.ts`. No handle: the public URL is the owner's `User.username`, so the public read finds the user by username, then the profile by `userId`.
 
-```ts
-import "server-only";
-import { Schema, type Types } from "mongoose";
-
-import { defineModel } from "./define-model";
-
-export interface ProfileDoc {
-  _id: Types.ObjectId;
-  userId: Types.ObjectId;
-  displayName: string;
-  bio?: string;
-  themeId: string;
-  published: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-const profileSchema = new Schema<ProfileDoc>(
-  {
-    userId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-      required: true,
-      unique: true,
-      index: true,
-    },
-    displayName: { type: String, required: true, trim: true, maxlength: 60 },
-    bio: { type: String, trim: true, maxlength: 160 },
-    themeId: { type: String, required: true, default: "default" },
-    published: { type: Boolean, required: true, default: false },
-  },
-  { strict: true, strictQuery: "throw", timestamps: true, versionKey: false },
-);
-
-export const Profile = defineModel<ProfileDoc>("Profile", profileSchema);
-```
+There's no `published` flag: a page is live once its owner has a username. The profile is created by the first save (an `updateOne` upsert in `queries/profile.ts`), so a user may have none; every read goes through `toProfileSettings`, which fills in the defaults. Socials: **TBD**.
 
 **`link.ts`** — the rows on the dashboard: `userId`, `title` (1–100), `url` (`http`/`https`, ≤ 2048), `visible`, `order`, `clickCount`. No `profileId`: a profile is one per user, so links hang off the owner's `userId`, and a link can exist before its owner has a profile. Indexes: `userId`, plus compound `{ userId: 1, order: 1 }` for the ordered list read, and `{ userId: 1, visible: 1, order: 1 }` for the public page. At most 100 links per user (`MAX_LINKS_PER_USER`, `security.md` §3).
 
@@ -254,28 +219,27 @@ Public profile pages are read by handle, by visitors with no session, through `g
 async function readPublicPage(handle: string): Promise<PublicPage | null> {
   await connectToDatabase();
 
-  // The handle is the owner's username (database.md §4): user first, then
-  // their profile. Only the _id leaves the user read.
-  const owner = await User.findOne({ username: handle }).select("_id").lean();
-  if (!owner) return null;
-
-  const profile = await Profile.findOne({ userId: owner._id, published: true })
-    .select("displayName bio themeId")
+  const owner = await User.findOne({ username: handle })
+    .select("_id username")
     .lean();
-  if (!profile) return null;
+  if (!owner?.username) return null;
 
-  const links = await Link.find({ userId: owner._id, visible: true })
-    .sort({ order: 1 })
-    .select("title url")
-    .lean();
+  // No profile yet is fine: toProfileSettings supplies the defaults.
+  const [profile, links] = await Promise.all([
+    Profile.findOne({ userId: owner._id }).select(PROFILE_FIELDS).lean(),
+    Link.find({ userId: owner._id, visible: true })
+      .select("title url")
+      .sort({ order: 1 })
+      .lean(),
+  ]);
 
-  return toPublicPage(profile, links);
+  return { username: owner.username, ...toProfileSettings(profile), links: … };
 }
 ```
 
 The exported `getPublicPage` wraps this in `unstable_cache` and React `cache()`; the full version is in `data-fetching.md` §3.2. The handle arrives already validated and lowercased by `handleSchema`, so the query doesn't normalise it again.
 
-This is the **only** unscoped read, and it's constrained in three ways: it's read-only, it filters on `published: true`, and it projects only the fields the public page renders — never `userId`, never the owner's email, never an unpublished profile. The link read is scoped by the owner’s `userId` and `visible: true`. Because the result is cached and shared by every visitor, a field that slips past the projection is both public and persisted. Any new unscoped query needs the same treatment, a reason, and its own place in `public-page.ts`.
+This is the **only** unscoped read, and it's constrained in three ways: it's read-only, it only finds users who have chosen a username, and it projects only the fields the public page renders — never `userId`, never the owner's email. The link read is scoped by the owner’s `userId` and `visible: true`. Because the result is cached and shared by every visitor, a field that slips past the projection is both public and persisted. Any new unscoped query needs the same treatment, a reason, and its own place in `public-page.ts`.
 
 Recording a click is the one unauthenticated **write** (`$inc` on `clickCount`, insert into `click`). It's scoped to the link id, takes no caller-supplied `userId`, and writes nothing else. Rate limiting / bot filtering: **TBD**.
 
