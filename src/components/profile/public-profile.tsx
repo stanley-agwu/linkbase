@@ -1,18 +1,27 @@
 import Link from "next/link";
 
-import type { PublicPage } from "@/lib/types";
+import type { ProfileTheme, PublicLink, PublicPage } from "@/lib/types";
 
 import { Portrait } from "./portrait";
 import { ProfileLink } from "./profile-link";
 import { resolveTheme } from "./resolve-theme";
 import { TEMPLATE_FONT_VARIABLES } from "./template-fonts";
 
+type PublicProfileProps = {
+  page: PublicPage;
+  /**
+   * Renders each link; the route passes one that records clicks. Defaults to
+   * a plain ProfileLink.
+   */
+  renderLink?: (link: PublicLink, theme: ProfileTheme) => React.ReactNode;
+};
+
 /**
  * A public profile page (ui.md §2.5): styled entirely by the owner's theme,
  * set inline because it's runtime data. No Linkbase chrome beyond the
  * "Made with linkbase" mark.
  */
-export function PublicProfile({ page }: { page: PublicPage }) {
+export function PublicProfile({ page, renderLink }: PublicProfileProps) {
   const theme = resolveTheme(page);
   const name = page.displayName ?? `@${page.username}`;
 
@@ -41,9 +50,13 @@ export function PublicProfile({ page }: { page: PublicPage }) {
           <ul className="m-0 mt-6 flex w-full list-none flex-col gap-3 p-0">
             {page.links.map((link) => (
               <li key={link.id}>
-                <ProfileLink theme={theme} href={link.url}>
-                  {link.title}
-                </ProfileLink>
+                {renderLink ? (
+                  renderLink(link, theme)
+                ) : (
+                  <ProfileLink theme={theme} href={link.url}>
+                    {link.title}
+                  </ProfileLink>
+                )}
               </li>
             ))}
           </ul>

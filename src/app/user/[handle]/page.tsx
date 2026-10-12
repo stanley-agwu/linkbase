@@ -5,6 +5,8 @@ import { getPublicPage } from "@/lib/db";
 import { handleSchema } from "@/lib/validation";
 import { PublicProfile } from "@/components/profile/public-profile";
 
+import { TrackedLink } from "./_components/public-link";
+
 /**
  * A malformed handle is a missing page, not a query (data-fetching.md §2.2).
  * The same `getPublicPage` call in the page and its metadata is one read.
@@ -38,5 +40,14 @@ export default async function UserPage({
   const page = await loadPage(params);
   if (!page) notFound();
 
-  return <PublicProfile page={page} />;
+  return (
+    <PublicProfile
+      page={page}
+      renderLink={(link, theme) => (
+        <TrackedLink linkId={link.id} href={link.url} theme={theme}>
+          {link.title}
+        </TrackedLink>
+      )}
+    />
+  );
 }

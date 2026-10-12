@@ -74,6 +74,39 @@ export type DashboardLink = {
   clicks: number;
 };
 
+/** The windows the analytics page offers. */
+export type AnalyticsRange = "7d" | "30d" | "90d";
+
+/** One bar on the clicks chart: a UTC day, or a week for the 90-day range. */
+export type ClickBucket = {
+  /** ISO date (YYYY-MM-DD) the bucket starts on, in UTC. */
+  start: string;
+  /** Axis label; empty for buckets that don't get a tick. */
+  label: string;
+  /** The bucket's full name, for the tooltip and table: "Mon 12 Oct". */
+  fullLabel: string;
+  count: number;
+};
+
+/** A link's clicks within the selected range. */
+export type LinkClicks = {
+  id: string;
+  title: string;
+  visible: boolean;
+  count: number;
+};
+
+/** Everything `/dashboard/analytics` renders for one range. */
+export type ClickAnalytics = {
+  range: AnalyticsRange;
+  total: number;
+  buckets: ClickBucket[];
+  /** The busiest bucket, or null when the range has no clicks. */
+  peak: ClickBucket | null;
+  /** Busiest first. */
+  links: LinkClicks[];
+};
+
 /** The signed-in account as the app sees it — never the password hash. */
 export type AuthUser = {
   id: string;

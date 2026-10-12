@@ -4,6 +4,7 @@ export { Click, type ClickDoc } from "./models/click";
 export { Link, type LinkDoc } from "./models/link";
 export { Profile, type ProfileDoc } from "./models/profile";
 export { User, type UserDoc } from "./models/user";
+export { getClickAnalytics, recordClick } from "./queries/click";
 export {
   countRecentClicks,
   createLink,
