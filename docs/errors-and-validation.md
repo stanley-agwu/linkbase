@@ -78,14 +78,16 @@ export const handleSchema = z
     "Use letters, numbers, hyphens and underscores only.",
   );
 
+// z.httpUrl() = z.url({ protocol: /^https?$/, hostname: z.regexes.domain })
 export const urlSchema = z
-  .url({
-    protocol: /^https?$/,
-    error: "Enter a full link, starting with https://",
-  })
-  .max(2048, "That link is too long");
+  .string({ error: "Enter a link." })
+  .trim()
+  .max(2048, "That link is too long.")
+  .pipe(z.httpUrl({ error: "Enter a full link, starting with https://" }));
 
-export const objectIdSchema = z.string().regex(/^[a-f0-9]{24}$/i, "Not found");
+export const objectIdSchema = z
+  .string({ error: "Not found" })
+  .regex(/^[a-f0-9]{24}$/i, "Not found");
 ```
 
 ```ts
@@ -100,7 +102,7 @@ export const updateLinkSchema = z.object({
     .string({ error: "Enter a title" })
     .trim()
     .min(1, "Enter a title")
-    .max(80, "80 characters or fewer"),
+    .max(100, "Use 100 characters or fewer."),
   url: urlSchema,
 });
 

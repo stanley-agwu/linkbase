@@ -4,7 +4,7 @@ MongoDB via Mongoose. Mongoose owns the schema, validation, and the connection p
 
 Structure and import rules come from `architecture.md` — this doc is the `lib/db` half of it in detail. Anything undecided is marked **TBD**.
 
-> **Mongoose 9** is installed. In the repo: `lib/db/connect.ts`, `lib/db/index.ts`, the `User`, `Profile`, `Link`, `Click` and `RateLimit` models, and `queries/user.ts` + `queries/rate-limit.ts`. Not yet: `cache-tags.ts` and the profile/link query functions — they arrive with the features that use them. Sections describing those are still the target shape.
+> **Mongoose 9** is installed. In the repo: `lib/db/connect.ts`, `lib/db/index.ts`, the `User`, `Profile`, `Link`, `Click` and `RateLimit` models, and `queries/user.ts`, `queries/link.ts` + `queries/rate-limit.ts`. Not yet: `cache-tags.ts` and the profile query functions — they arrive with the features that use them. Sections describing those are still the target shape.
 
 ---
 
@@ -198,7 +198,7 @@ const profileSchema = new Schema<ProfileDoc>(
 export const Profile = defineModel<ProfileDoc>("Profile", profileSchema);
 ```
 
-**`link.ts`** — the rows in the editor: `userId`, `profileId`, `title`, `url`, `visible`, `order`, `clickCount`. Indexes: `userId`, plus compound `{ userId: 1, order: 1 }` for the ordered list read, and `{ profileId: 1, visible: 1, order: 1 }` for the public page.
+**`link.ts`** — the rows on the dashboard: `userId`, `title` (1–100), `url` (`http`/`https`, ≤ 2048), `visible`, `order`, `clickCount`. No `profileId`: a profile is one per user, so links hang off the owner's `userId`, and a link can exist before its owner has a profile. Indexes: `userId`, plus compound `{ userId: 1, order: 1 }` for the ordered list read, and `{ userId: 1, visible: 1, order: 1 }` for the public page. At most 100 links per user (`MAX_LINKS_PER_USER`, `security.md` §3).
 
 **`click.ts`** — analytics events: `userId`, `linkId`, `createdAt`. Index `{ userId: 1, createdAt: -1 }` for the "last 7 days" reads. Whether clicks stay as raw events, get rolled up daily, or use a TTL index: **TBD** — depends on expected volume.
 
@@ -264,7 +264,7 @@ async function readPublicPage(handle: string): Promise<PublicPage | null> {
     .lean();
   if (!profile) return null;
 
-  const links = await Link.find({ profileId: profile._id, visible: true })
+  const links = await Link.find({ userId: owner._id, visible: true })
     .sort({ order: 1 })
     .select("title url")
     .lean();
@@ -275,7 +275,7 @@ async function readPublicPage(handle: string): Promise<PublicPage | null> {
 
 The exported `getPublicPage` wraps this in `unstable_cache` and React `cache()`; the full version is in `data-fetching.md` §3.2. The handle arrives already validated and lowercased by `handleSchema`, so the query doesn't normalise it again.
 
-This is the **only** unscoped read, and it's constrained in three ways: it's read-only, it filters on `published: true`, and it projects only the fields the public page renders — never `userId`, never the owner's email, never an unpublished profile. The link read is scoped by `profileId` and `visible: true`. Because the result is cached and shared by every visitor, a field that slips past the projection is both public and persisted. Any new unscoped query needs the same treatment, a reason, and its own place in `public-page.ts`.
+This is the **only** unscoped read, and it's constrained in three ways: it's read-only, it filters on `published: true`, and it projects only the fields the public page renders — never `userId`, never the owner's email, never an unpublished profile. The link read is scoped by the owner’s `userId` and `visible: true`. Because the result is cached and shared by every visitor, a field that slips past the projection is both public and persisted. Any new unscoped query needs the same treatment, a reason, and its own place in `public-page.ts`.
 
 Recording a click is the one unauthenticated **write** (`$inc` on `clickCount`, insert into `click`). It's scoped to the link id, takes no caller-supplied `userId`, and writes nothing else. Rate limiting / bot filtering: **TBD**.
 
