@@ -7,7 +7,8 @@ import { authConfig } from "@/auth.config";
 // the database. The proxy runs on every matched request, prefetches included.
 const { auth } = NextAuth(authConfig);
 
-const PUBLIC_PATHS = new Set(["/", "/login", "/signup"]);
+// /templates is marketing: the landing page and NavBar link to it.
+const PUBLIC_PATHS = new Set(["/", "/login", "/signup", "/templates"]);
 
 function isPublic(pathname: string): boolean {
   return (
