@@ -30,6 +30,16 @@ export type ProfileTemplate = ProfileTheme & {
   links: string[];
 };
 
+/** One of the signed-in user's links, as the dashboard renders it. */
+export type DashboardLink = {
+  id: string;
+  title: string;
+  url: string;
+  /** Shown on the public page. Hidden links stay editable. */
+  visible: boolean;
+  clicks: number;
+};
+
 /** The signed-in account as the app sees it — never the password hash. */
 export type AuthUser = {
   id: string;
