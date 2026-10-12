@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 
 import type { DashboardLink } from "@/lib/types";
 import type {
@@ -10,6 +11,8 @@ import type {
 import { connectToDatabase } from "../connect";
 import { Click } from "../models/click";
 import { Link, type LinkDoc } from "../models/link";
+
+import { expirePublicProfile } from "./public-page";
 
 /** The hard cap on links per account (security.md §3). */
 export const MAX_LINKS_PER_USER = 100;
@@ -32,16 +35,21 @@ function toLink(doc: LinkFields): DashboardLink {
   };
 }
 
-/** The signed-in user's links, in their display order. */
-export async function listLinks(userId: string): Promise<DashboardLink[]> {
-  await connectToDatabase();
+/**
+ * The signed-in user's links, in their display order. Read by the dashboard
+ * layout's preview and the page in the same render, hence `cache()`.
+ */
+export const listLinks = cache(
+  async (userId: string): Promise<DashboardLink[]> => {
+    await connectToDatabase();
 
-  const docs = await Link.find({ userId })
-    .select(LINK_FIELDS)
-    .sort({ order: 1 })
-    .lean();
-  return docs.map(toLink);
-}
+    const docs = await Link.find({ userId })
+      .select(LINK_FIELDS)
+      .sort({ order: 1 })
+      .lean();
+    return docs.map(toLink);
+  },
+);
 
 /**
  * Appends a link after the user's last one. Returns `"limit"` at the cap
@@ -67,6 +75,7 @@ export async function createLink(
     url: input.url,
     order: last ? last.order + 1 : 0,
   });
+  await expirePublicProfile(userId);
   return toLink(doc);
 }
 
@@ -84,7 +93,10 @@ export async function updateLink(
   )
     .select(LINK_FIELDS)
     .lean();
-  return doc ? toLink(doc) : null;
+  if (!doc) return null;
+
+  await expirePublicProfile(userId);
+  return toLink(doc);
 }
 
 /**
@@ -97,7 +109,7 @@ export async function deleteLink(
 ): Promise<boolean> {
   const { connection } = await connectToDatabase();
 
-  return connection.transaction(async (session) => {
+  const deleted = await connection.transaction(async (session) => {
     const { deletedCount } = await Link.deleteOne(
       { _id: linkId, userId },
       { session },
@@ -107,6 +119,8 @@ export async function deleteLink(
     await Click.deleteMany({ linkId, userId }, { session });
     return true;
   });
+  if (deleted) await expirePublicProfile(userId);
+  return deleted;
 }
 
 /** Returns `false` when the link doesn't exist or isn't this user's. */
@@ -121,7 +135,10 @@ export async function setLinkVisibility(
     { _id: linkId, userId },
     { $set: { visible } },
   );
-  return matchedCount > 0;
+  if (matchedCount === 0) return false;
+
+  await expirePublicProfile(userId);
+  return true;
 }
 
 /**
@@ -135,12 +152,12 @@ export async function moveLink(
 ): Promise<"moved" | "edge" | "not-found"> {
   const { connection } = await connectToDatabase();
 
-  return connection.transaction(async (session) => {
+  const outcome = await connection.transaction(async (session) => {
     const link = await Link.findOne({ _id: linkId, userId })
       .select("order")
       .session(session)
       .lean();
-    if (!link) return "not-found";
+    if (!link) return "not-found" as const;
 
     const up = direction === "up";
     const neighbour = await Link.findOne({
@@ -151,7 +168,7 @@ export async function moveLink(
       .sort({ order: up ? -1 : 1 })
       .session(session)
       .lean();
-    if (!neighbour) return "edge";
+    if (!neighbour) return "edge" as const;
 
     await Link.bulkWrite(
       [
@@ -170,8 +187,10 @@ export async function moveLink(
       ],
       { session },
     );
-    return "moved";
+    return "moved" as const;
   });
+  if (outcome === "moved") await expirePublicProfile(userId);
+  return outcome;
 }
 
 /** Click events on the user's links in the last `days` days. */

@@ -20,9 +20,43 @@ export type TemplateCategory =
   | "Sports"
   | "Travel";
 
+/** The starter themes, one per template in `components/profile/templates`. */
+export type ThemeId =
+  "kiln" | "tidepool" | "halfpipe" | "encore" | "ledger" | "hem" | "rep";
+
+/** `template` keeps the theme's own corner radius or font. */
+export type ButtonShape = "template" | "square" | "soft" | "pill";
+export type ProfileFont = "template" | "dm-sans" | "bricolage" | "mono";
+
+/** What the owner picked on Appearance; resolved to a `ProfileTheme` for rendering. */
+export type Appearance = {
+  themeId: ThemeId;
+  buttonShape: ButtonShape;
+  font: ProfileFont;
+};
+
+/** The owner's profile as the dashboard edits it. Defaults when none is saved. */
+export type ProfileSettings = Appearance & {
+  displayName: string | null;
+  bio: string | null;
+};
+
+/** A link as the public page shows it: no visibility, no counts. */
+export type PublicLink = {
+  id: string;
+  title: string;
+  url: string;
+};
+
+/** Everything `/user/[handle]` renders, and nothing else (database.md §5). */
+export type PublicPage = ProfileSettings & {
+  username: string;
+  links: PublicLink[];
+};
+
 /** A starter profile: a theme plus the sample content shown in previews. */
 export type ProfileTemplate = ProfileTheme & {
-  id: string;
+  id: ThemeId;
   name: string;
   category: TemplateCategory;
   title: string;

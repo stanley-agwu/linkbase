@@ -37,6 +37,22 @@ export {
 } from "./link";
 export { type ChooseUsernameInput, chooseUsernameSchema } from "./onboarding";
 export {
+  BIO_MAX_LENGTH,
+  BUTTON_SHAPES,
+  buttonShapeSchema,
+  type ChooseLookInput,
+  chooseLookSchema,
+  DISPLAY_NAME_MAX_LENGTH,
+  PROFILE_FONTS,
+  profileFontSchema,
+  THEME_IDS,
+  themeIdSchema,
+  type UpdateAppearanceInput,
+  updateAppearanceSchema,
+  type UpdateProfileInput,
+  updateProfileSchema,
+} from "./profile";
+export {
   type ActionResult,
   type FieldErrors,
   fieldError,
