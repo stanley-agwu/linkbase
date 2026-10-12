@@ -27,7 +27,7 @@ Unit tests are Vitest (`vitest.config.mts`), for pure functions and Zod schemas 
 
 ## State of the repo
 
-Built so far: the marketing landing page (`app/(marketing)`), the design tokens and `components/{ui,marketing,profile}`, the Mongoose data layer (`lib/db`), Zod schemas and `ActionResult` (`lib/validation`), and credentials auth — NextAuth v5 in `src/auth.ts` / `src/auth.config.ts`, `src/proxy.ts`, `lib/auth`, `app/(auth)` (`/login`, `/signup`), onboarding (`app/(onboarding)`: username, then pick a look), the links dashboard (`app/(dashboard)/dashboard`: add, inline edit, delete, edit profile, live preview) and Appearance (`/dashboard/appearance`), the public profile (`app/user/[handle]`, cached via `getPublicPage`), and the header account menu (`components/auth`). Keep `@/*` (→ `./src/*`) imports rather than relative traversal.
+Built so far: the marketing landing page (`app/(marketing)`), the design tokens and `components/{ui,marketing,profile}`, the Mongoose data layer (`lib/db`), Zod schemas and `ActionResult` (`lib/validation`), and credentials auth — NextAuth v5 in `src/auth.ts` / `src/auth.config.ts`, `src/proxy.ts`, `lib/auth`, `app/(auth)` (`/login`, `/signup`), onboarding (`app/(onboarding)`: username, then pick a look), the links dashboard (`app/(dashboard)/dashboard`: add, inline edit, delete, edit profile, live preview) Appearance (`/dashboard/appearance`) and click Analytics (`/dashboard/analytics`), the public profile (`app/user/[handle]`, cached via `getPublicPage`, recording link clicks), and the header account menu (`components/auth`). Keep `@/*` (→ `./src/*`) imports rather than relative traversal.
 
 ## Stack specifics that affect how you write code
 
