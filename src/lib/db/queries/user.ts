@@ -1,7 +1,9 @@
 import "server-only";
+import { revalidateTag } from "next/cache";
 
 import type { AuthUser } from "@/lib/types";
 
+import { cacheTags } from "../cache-tags";
 import { connectToDatabase } from "../connect";
 import { User, type UserDoc } from "../models/user";
 
@@ -102,7 +104,9 @@ export async function filterAvailableUsernames(
 /**
  * Sets the username once. The filter is scoped to the user's own id and only
  * matches while no username is set, so it can't overwrite one. A duplicate
- * comes back as `"taken"`, never as a Mongo error.
+ * comes back as `"taken"`, never as a Mongo error. A visit to the handle
+ * before it was claimed cached "not found", so setting it clears that
+ * (data-fetching.md §3.4).
  */
 export async function setUsername(
   userId: string,
@@ -116,7 +120,10 @@ export async function setUsername(
       { $set: { username } },
       { runValidators: true },
     );
-    return matchedCount === 1 ? "set" : "already-set";
+    if (matchedCount !== 1) return "already-set";
+
+    revalidateTag(cacheTags.publicProfile(username), { expire: 0 });
+    return "set";
   } catch (error) {
     if (isDuplicateKeyError(error)) return "taken";
     throw error;

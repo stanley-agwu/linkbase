@@ -14,6 +14,12 @@ export {
   setLinkVisibility,
   updateLink,
 } from "./queries/link";
+export {
+  getProfileSettings,
+  updateAppearance,
+  updateProfileDetails,
+} from "./queries/profile";
+export { getPublicPage } from "./queries/public-page";
 export { consumeRateLimit } from "./queries/rate-limit";
 export {
   createUser,
