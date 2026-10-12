@@ -1,4 +1,4 @@
-import { SOON_CLASS, SoonTag } from "@/components/ui/soon-tag";
+import Link from "next/link";
 
 type AnalyticsCardProps = {
   clicksThisWeek: number;
@@ -9,7 +9,7 @@ const count = new Intl.NumberFormat("en");
 
 /**
  * The collapsible summary above the profile. A native `<details>`, so it
- * opens and closes without JavaScript. Views aren't tracked yet, so Views and
+ * opens and closes without JavaScript. Only clicks are tracked, so Views and
  * Click rate show "—".
  */
 export function AnalyticsCard({
@@ -43,13 +43,12 @@ export function AnalyticsCard({
         <Stat label="Click rate" value="—" />
       </dl>
 
-      <p
-        aria-disabled="true"
-        className={`m-0 mt-4 flex items-center gap-2 text-sm font-semibold ${SOON_CLASS}`}
+      <Link
+        href="/dashboard/analytics"
+        className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-strong"
       >
-        Open analytics →
-        <SoonTag />
-      </p>
+        Open analytics <span aria-hidden="true">&nbsp;→</span>
+      </Link>
     </details>
   );
 }

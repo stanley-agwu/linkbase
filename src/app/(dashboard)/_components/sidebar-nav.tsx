@@ -3,21 +3,21 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-const ITEMS = [
-  { label: "My linkbase", href: "/dashboard" },
-  { label: "Appearance", href: "/dashboard/appearance" },
-] as const;
-
 type SidebarNavProps = {
+  /** Sidebar entries with a page behind them, in the order shown. */
+  items: { label: string; href: string }[];
   /** Shared with the sidebar's "Soon" rows so both line up. */
   itemClassName: string;
 };
 
-/** The sidebar entries with a page behind them, marking the current one. */
-export function SidebarNav({ itemClassName }: SidebarNavProps) {
+/**
+ * Sidebar entries that link somewhere, marking the current one. Rendered in
+ * runs between the "Soon" rows so the mockup's order holds.
+ */
+export function SidebarNav({ items, itemClassName }: SidebarNavProps) {
   const pathname = usePathname();
 
-  return ITEMS.map(({ label, href }) => {
+  return items.map(({ label, href }) => {
     const current = pathname === href;
     return (
       <li key={href}>

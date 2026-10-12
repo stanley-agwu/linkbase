@@ -6,9 +6,14 @@ import { logOut } from "@/lib/auth/actions";
 import { SidebarDrawer } from "./sidebar-drawer";
 import { SidebarNav } from "./sidebar-nav";
 
-// In the mockup's order, after My linkbase and Appearance. None has a page
-// yet, so each renders disabled.
-const SECTIONS = ["Shop", "Earnings", "Audience", "Analytics"];
+// The mockup's order: pages first, then the unbuilt sections (rendered
+// disabled), then Analytics.
+const PAGES = [
+  { label: "My linkbase", href: "/dashboard" },
+  { label: "Appearance", href: "/dashboard/appearance" },
+];
+const SECTIONS = ["Shop", "Earnings", "Audience"];
+const ANALYTICS = [{ label: "Analytics", href: "/dashboard/analytics" }];
 const TOOLS = [
   "Social planner",
   "Instagram auto-reply",
@@ -37,10 +42,11 @@ export async function DashboardSidebar() {
 
       <nav aria-label="Dashboard" className="mt-4 flex flex-1 flex-col">
         <ul className="m-0 flex list-none flex-col gap-1 p-0">
-          <SidebarNav itemClassName={ITEM} />
+          <SidebarNav items={PAGES} itemClassName={ITEM} />
           {SECTIONS.map((label) => (
             <SoonItem key={label} label={label} />
           ))}
+          <SidebarNav items={ANALYTICS} itemClassName={ITEM} />
         </ul>
 
         <h2 className="m-0 mt-6 mb-1 px-3.5 font-mono text-xs font-normal tracking-widest text-muted uppercase">
