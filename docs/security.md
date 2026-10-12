@@ -162,7 +162,7 @@ Testing: headers don't appear in `next dev` the same way they do in a real respo
 | Sign-up                                     | bulk account creation, handle squatting                                                                                 | per IP                                    |
 | Handle availability check                   | fires per keystroke by design (`data-fetching.md` §5.1), so it's the cheapest endpoint to hammer and enumerates handles | per session, plus debounce                |
 | Link creation                               | spam link farms on public profiles, and unbounded rows per account                                                      | **done** — 30/min per user, cap 100 links |
-| Click recording                             | the one unauthenticated write (`database.md` §5) — trivially inflated to fake analytics                                 | per IP per link                           |
+| Click recording                             | the one unauthenticated write (`database.md` §5) — trivially inflated to fake analytics                                 | **done** — 10/min per IP per link         |
 | Password reset / email send, once it exists | mail-bombing someone else's address                                                                                     | per IP and per address                    |
 
 Rules that hold whatever we implement:

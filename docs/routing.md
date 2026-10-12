@@ -21,6 +21,7 @@ The URL map, the route groups behind it, and which file conventions each segment
 | `/onboarding/look`      | `(onboarding)/onboarding/look/page.tsx`     | **authenticated** | §2.3 pick a look  |
 | `/dashboard`            | `(dashboard)/dashboard/page.tsx`            | **authenticated** | §2.4              |
 | `/dashboard/appearance` | `(dashboard)/dashboard/appearance/page.tsx` | **authenticated** | §2.4 appearance   |
+| `/dashboard/analytics`  | `(dashboard)/dashboard/analytics/page.tsx`  | **authenticated** | §2.4 analytics    |
 | `/user/[handle]`        | `user/[handle]/page.tsx`                    | **public**        | §2.5 profile      |
 | `/api/auth/*`           | `api/auth/[...nextauth]/route.ts`           | public            | — (NextAuth)      |
 
@@ -100,10 +101,15 @@ src/
           page.tsx                # /dashboard/appearance — theme, shape, font
           _actions.ts             # updateAppearance
           _components/
+        analytics/
+          page.tsx                # /dashboard/analytics?range=7d|30d|90d
+          _components/            # click-chart, click-bar
 
     user/
       [handle]/
         page.tsx                  # /user/[handle]
+        _actions.ts               # recordClick — no session (database.md §5)
+        _components/              # public-link (TrackedLink)
         loading.tsx
         error.tsx
         not-found.tsx             # unknown or malformed handle
