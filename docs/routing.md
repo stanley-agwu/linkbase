@@ -15,6 +15,7 @@ The URL map, the route groups behind it, and which file conventions each segment
 | URL                     | File                                        | Access            | Renders (`ui.md`) |
 | ----------------------- | ------------------------------------------- | ----------------- | ----------------- |
 | `/`                     | `(marketing)/page.tsx`                      | **public**        | §2.2 landing      |
+| `/templates`            | `(marketing)/templates/page.tsx`            | **public**        | §2.2 gallery      |
 | `/login`                | `(auth)/login/page.tsx`                     | **public**        | §2.3              |
 | `/signup`               | `(auth)/signup/page.tsx`                    | **public**        | §2.3 onboarding   |
 | `/onboarding`           | `(onboarding)/onboarding/page.tsx`          | **authenticated** | §2.3 username     |
@@ -65,6 +66,8 @@ src/
 
     (marketing)/
       page.tsx                    # /
+      templates/
+        page.tsx                  # /templates?category= — the gallery
 
     (auth)/
       layout.tsx                  # centred, no app chrome
@@ -231,10 +234,9 @@ This route map was specified after `ui.md`, `architecture.md`, and `auth.md`, an
 
 ## 8. Not decided yet
 
-| Item                                                           | Status                                                                |
-| -------------------------------------------------------------- | --------------------------------------------------------------------- |
-| `/templates` page (`ui.md` §2.2 mentions a standalone gallery) | **TBD** — not in the map above                                        |
-| Whether the landing page needs `(marketing)/layout.tsx`        | **TBD** — only if a second marketing page lands                       |
-| First webhook provider and its signature scheme                | **TBD** (§6)                                                          |
-| `/user/[handle]` metadata and OG image generation              | **TBD** — `opengraph-image.tsx` would live in that segment            |
-| Which names besides `admin` to reserve                         | **TBD** — the list is `RESERVED_HANDLES` (`lib/validation/fields.ts`) |
+| Item                                              | Status                                                                                                                                                 |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Whether `(marketing)` needs a `layout.tsx`        | **TBD** — `/templates` is the second marketing page; it repeats the landing page's NavBar + Footer for now, since only the landing page has the Banner |
+| First webhook provider and its signature scheme   | **TBD** (§6)                                                                                                                                           |
+| `/user/[handle]` metadata and OG image generation | **TBD** — `opengraph-image.tsx` would live in that segment                                                                                             |
+| Which names besides `admin` to reserve            | **TBD** — the list is `RESERVED_HANDLES` (`lib/validation/fields.ts`)                                                                                  |
