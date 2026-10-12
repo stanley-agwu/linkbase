@@ -17,19 +17,22 @@ import {
   chooseUsernameSchema,
   fieldError,
   handleSchema,
+  themeIdSchema,
   validationError,
 } from "@/lib/validation";
 
 const MINUTE_MS = 60 * 1000;
+const LOOK_PATH = "/onboarding/look";
 const SUGGESTION_COUNT = 3;
 
 /**
  * Saves the username, then refreshes the session cookie so the proxy stops
- * holding the user at onboarding. "already-set" takes the same path: it's the
- * user whose cookie predates a username chosen elsewhere.
+ * holding the user at onboarding, and moves on to picking a look. A template
+ * chosen before signup rides along. "already-set" takes the same path: it's
+ * the user whose cookie predates a username chosen elsewhere.
  *
- * No cache to revalidate yet. When /user/[handle] exists, the new username's
- * public-profile tag must be cleared here (data-fetching.md §3.4).
+ * `setUsername` clears the handle's cached public page itself
+ * (data-fetching.md §3.4).
  */
 export async function chooseUsername(
   _previous: ActionResult<ChooseUsernameInput>,
@@ -47,7 +50,11 @@ export async function chooseUsername(
 
   // Re-reads the username from the database in auth.ts's jwt callback.
   await updateSession({});
-  redirect("/dashboard");
+
+  const template = themeIdSchema.safeParse(formData.get("template"));
+  redirect(
+    template.success ? `${LOOK_PATH}?template=${template.data}` : LOOK_PATH,
+  );
 }
 
 /**
