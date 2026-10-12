@@ -29,6 +29,8 @@ const HELPER = `${HANDLE_MIN_LENGTH}–${HANDLE_MAX_LENGTH} characters: letters,
 type UsernameFormProps = {
   /** A handle claimed on the landing page, already validated. */
   defaultValue?: string;
+  /** A template picked before signup, passed on to the look step. */
+  template?: string;
 };
 
 /**
@@ -37,7 +39,10 @@ type UsernameFormProps = {
  * alternatives to pick from. The server re-validates on submit, and the
  * unique index has the final say.
  */
-export function UsernameForm({ defaultValue = "" }: UsernameFormProps) {
+export function UsernameForm({
+  defaultValue = "",
+  template,
+}: UsernameFormProps) {
   const messageId = useId();
   const [state, formAction, submitting] = useActionState(chooseUsername, idle);
   const [value, setValue] = useState(defaultValue);
@@ -97,6 +102,9 @@ export function UsernameForm({ defaultValue = "" }: UsernameFormProps) {
 
   return (
     <form action={formAction} noValidate className="flex flex-col gap-5">
+      {template ? (
+        <input type="hidden" name="template" value={template} />
+      ) : null}
       <div className="flex flex-col gap-3">
         <label
           className={`flex h-15 cursor-text items-center rounded-input bg-surface-card px-4.5 text-input text-strong focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ember-500 ${tone === "error" ? "border-[1.5px] border-status-error-border" : "border-[1.5px] border-strong-border"}`}
