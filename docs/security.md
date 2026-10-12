@@ -4,7 +4,7 @@ Secrets, response headers, rate limiting, and the handling of user-generated con
 
 Scope: the measures that protect the app and its visitors. `auth.md` owns identity and access control — who a request is, and which routes and rows they may touch — and is the larger half of security in this app; this doc covers everything around it. `errors-and-validation.md` owns input validation and what may leak through an error message, `data-mutations.md` the write path. Anything undecided is marked **TBD**.
 
-> **Partly implemented.** Done: §1.1's `.gitignore` negation and `.env.example` (with `MONGODB_URI`), and `ProfileLink` (preview-only so far). Sign-in and sign-up rate limits (§3). Not yet: `next.config.ts` has no `headers()` (§2.1 is the next thing to do), no CSP, no limits on the other endpoints in §3, and no real profile links.
+> **Partly implemented.** Done: §1.1's `.gitignore` negation and `.env.example` (with `MONGODB_URI`), and `ProfileLink` (preview-only so far). Sign-in, sign-up, username-check and link-creation rate limits (§3). Not yet: `next.config.ts` has no `headers()` (§2.1 is the next thing to do), no CSP, no limits on the other endpoints in §3, and no real profile links.
 
 ---
 
@@ -156,14 +156,14 @@ Testing: headers don't appear in `next dev` the same way they do in a real respo
 
 **Implemented for sign-in and sign-up**, with counters in MongoDB (`RateLimit` model, TTL index; `consumeRateLimit` in `lib/db`). Sign-in: 5 per email and 20 per IP per 15 minutes, checked inside the credentials provider's `authorize` so a direct POST to `/api/auth/callback/credentials` is limited too. Sign-up: 5 per IP per hour, in the `signUp` action. Both are checked before any argon2 work. The IP is the first `x-forwarded-for` hop, which is only trustworthy behind a proxy that overwrites the header — confirm that for the production host. The other rows remain **TBD**:
 
-| Endpoint                                    | Why it needs a limit                                                                                                    | Suggested shape            |
-| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| Sign-in                                     | credential stuffing and password brute force. Without a limit, an attacker gets unlimited guesses against every account | per IP **and** per email   |
-| Sign-up                                     | bulk account creation, handle squatting                                                                                 | per IP                     |
-| Handle availability check                   | fires per keystroke by design (`data-fetching.md` §5.1), so it's the cheapest endpoint to hammer and enumerates handles | per session, plus debounce |
-| Link creation                               | spam link farms on public profiles, and unbounded rows per account                                                      | per user, plus a hard cap  |
-| Click recording                             | the one unauthenticated write (`database.md` §5) — trivially inflated to fake analytics                                 | per IP per link            |
-| Password reset / email send, once it exists | mail-bombing someone else's address                                                                                     | per IP and per address     |
+| Endpoint                                    | Why it needs a limit                                                                                                    | Suggested shape                           |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| Sign-in                                     | credential stuffing and password brute force. Without a limit, an attacker gets unlimited guesses against every account | per IP **and** per email                  |
+| Sign-up                                     | bulk account creation, handle squatting                                                                                 | per IP                                    |
+| Handle availability check                   | fires per keystroke by design (`data-fetching.md` §5.1), so it's the cheapest endpoint to hammer and enumerates handles | per session, plus debounce                |
+| Link creation                               | spam link farms on public profiles, and unbounded rows per account                                                      | **done** — 30/min per user, cap 100 links |
+| Click recording                             | the one unauthenticated write (`database.md` §5) — trivially inflated to fake analytics                                 | per IP per link                           |
+| Password reset / email send, once it exists | mail-bombing someone else's address                                                                                     | per IP and per address                    |
 
 Rules that hold whatever we implement:
 
@@ -171,7 +171,7 @@ Rules that hold whatever we implement:
 - **Sign-in needs two counters.** Per-IP alone lets a botnet spread guesses across addresses; per-account alone lets one IP walk the whole user list. Count both, and make the per-account counter the strict one.
 - **Don't leak the limiter's state.** "Too many attempts for this account" confirms the account exists. The message is the same whether or not it does.
 - **A rate-limit rejection is an expected failure** — a `formError`, not a thrown error (`errors-and-validation.md` §1).
-- **Cap totals as well as rates.** A per-minute limit on link creation still allows a hundred thousand links over a week. Links per profile needs a maximum: **TBD**.
+- **Cap totals as well as rates.** A per-minute limit on link creation still allows a hundred thousand links over a week. Links: 100 per user (`MAX_LINKS_PER_USER`).
 - **Counters need shared storage.** In-memory state doesn't survive a restart and isn't shared between instances, so it's not a limit in production. Where it lives (MongoDB with a TTL index, or something like Upstash): **TBD** — and a MongoDB-backed counter must not be read from `proxy.ts`, which can't touch the database (`database.md` §1).
 - Bot filtering on click recording (as opposed to rate limiting) is separately **TBD** (`database.md` §5).
 

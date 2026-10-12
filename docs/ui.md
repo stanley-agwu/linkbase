@@ -371,9 +371,9 @@ Layout (flex, centre, gap 14, padding 14/16, hairline, `rounded-md`, `bg-surface
 | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | Visible (`on`)        | opacity 1                                                                                                                                      |
 | Hidden (`!on`)        | opacity .55 (row stays editable)                                                                                                               |
-| First / last row      | up/down still rendered — disable at bounds **TBD**                                                                                             |
+| First / last row      | ▲ disabled on the first row, ▼ on the last; `moveLink` swaps `order` with the neighbour in one transaction                                     |
 | Drag-to-reorder       | **TBD** (arrows only)                                                                                                                          |
-| Delete confirm / undo | **TBD**                                                                                                                                        |
+| Delete confirm        | × opens a native `<dialog role="alertdialog">`: "Delete this link?", Cancel (focused) and Delete. No undo                                      |
 | Invalid URL           | `urlSchema`'s message ("Enter a full link, starting with https://") below the URL input; `http`/`https` only (`errors-and-validation.md` §2.3) |
 | Focus (inline inputs) | **TBD** — reference sets `outline: 0`; must add a visible focus treatment                                                                      |
 
@@ -469,7 +469,9 @@ Validation rules beyond the username sanitiser (password length, email format): 
   - **Main** `flex: 999 1 420px`, max-w 760, padding `32px clamp(20px,4vw,48px)`, gap 24. Section cards: padding 20, hairline, radius 14, `bg-surface-card`, gap 12. H2: Bricolage 800 30px −0.03em.
   - **Preview** `flex: 1 1 300px`, padding 32/24, hairline left, `bg-surface-soft`, centred column gap 12: "Live preview" 13px muted + framed ProfilePhone (max-w 290).
 - Tab content: **Links** — add-link form (title + URL TextFields) and LinkRow list. **Appearance** — ThemeSwatch grid. **Analytics** — "Last 7 days": KPI StatCards (`auto-fit minmax(160px,1fr)`, gap 12) + ClickBar list.
-- Empty states (no links, no analytics): **TBD**. Loading / error states: **TBD** — the error state's structure (fixed copy, digest as a reference, "Try again" calling `retry`) is in `errors-and-validation.md` §5.2; its design isn't. Mobile layout of sidebar (currently wraps above main): **TBD**.
+- **As built** (matches the "Dashboard — my linkbase" mockup): the `(dashboard)` layout is a 248px sidebar (account `UserMenu`, "My linkbase" active, Log out) that becomes a `<dialog>` drawer behind a ☰ top bar below `lg`. The page: a header ("My linkbase", Theme, Share copying `https://linkbase.me/<username>`), a collapsible `<details>` analytics card (clicks this week, all-time Clicks), the profile header (Portrait, username), a full-width ember "+ Add" opening the add `<dialog>`, and the LinkRow list. On the right, a sticky Live preview (`ProfilePhone` in the Kiln theme with the visible links in order); below `lg`, a floating "Preview" button opens it in a `<dialog>`. Clicking a row's text swaps in inline `sm` TextFields with Save / Cancel (Escape cancels).
+- **Unbuilt, shown disabled with a "Soon" tag** (`components/ui/soon-tag.tsx`): sidebar Appearance, Shop, Earnings, Audience, Analytics, the Tools list, Help, What's new; Theme; Views and Click rate ("—"); Open analytics; bio, social icons (muted) and the "…" menu; + Add collection; View archive; and each row's Thumbnail, Schedule and Lock.
+- Empty states: no links → "No links yet. Add your first one."; no analytics **TBD**. Loading / error states: **TBD** — the error state's structure (fixed copy, digest as a reference, "Try again" calling `retry`) is in `errors-and-validation.md` §5.2; its design isn't. Mobile layout of sidebar (currently wraps above main): **TBD**.
 
 ### 2.5 Public profile page
 

@@ -38,7 +38,7 @@ Self-hosting note: closure encryption needs `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY`
 
 `"use server"` goes at the top of the **file**, not on individual functions, so there's one place to look to know a module is a set of endpoints. Don't put the directive in `lib/db/queries` — those are plain functions, and marking them would expose every query as a POST endpoint (`database.md` §3).
 
-- **Verb-first names**: `createLink`, `updateLink`, `deleteLink`, `reorderLinks`, `claimHandle`, `publishProfile`. Not `linkAction`, not `handleSubmit`, not `save`.
+- **Verb-first names**: `createLink`, `updateLink`, `deleteLink`, `moveLink`, `setLinkVisibility`, `reorderLinks`, `claimHandle`, `publishProfile`. Not `linkAction`, not `handleSubmit`, not `save`.
 - **One action per user-visible operation.** Reordering is `reorderLinks`, not `updateLink` called in a loop by the client — the loop would be three round trips and three partial states.
 - **Inline actions** (defined inside a Server Component) are fine for a trivial single-purpose form, but anything with validation belongs in an `_actions.ts` file where it can be read and reused.
 - Actions can be passed to Client Components as props, which is how a client leaf mutates without importing server-only modules.
@@ -220,7 +220,7 @@ An action that only reads is still a POST endpoint that serialises behind every 
 ## 7. Destructive writes
 
 - **Deletes are scoped like any write** — `deleteOne({ _id, userId })`, never `findByIdAndDelete`.
-- **Confirm in the UI, not in the action.** The action does what it's asked; the confirm step is the component's job. Delete-confirm UX is **TBD** (`ui.md` §1.21).
+- **Confirm in the UI, not in the action.** The action does what it's asked; the confirm step is the component's job. The dashboard confirms in a `<dialog>`, with no undo (`ui.md` §1.21).
 - **Deleting a parent cleans up its children** in the same query function — deleting a link removes its clicks — so the action makes one call. That's a transaction case (§3.4).
 - **Cascades on account deletion** (profile, links, clicks, session): **TBD** (`auth.md` §7).
 - **Repeated submits.** Actions aren't idempotent by default: a double-submitted create makes two rows. Forms disable the button while `pending`, which covers the common case. Anything where a duplicate is costly needs a real idempotency key — **TBD**, nothing needs one yet.
@@ -255,12 +255,12 @@ Inbound webhooks and OAuth callbacks are Route Handlers (`routing.md` §6), and 
 
 ## 10. Not decided yet
 
-| Item                                                      | Status                                     |
-| --------------------------------------------------------- | ------------------------------------------ |
-| Transactions in development (needs a replica set)         | **TBD** — `database.md` §6                 |
-| Rate limiting on actions (signup, sign-in, handle checks) | **TBD** — none today (`auth.md` §7)        |
-| Idempotency keys for repeated submits                     | **TBD** — §7                               |
-| Account deletion cascade                                  | **TBD** — `auth.md` §7                     |
-| Webhook signature verification                            | **TBD** — §8                               |
-| Delete-confirm / undo UX                                  | **TBD** — `ui.md` §1.21                    |
-| `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` handling             | **TBD** — depends on the deployment target |
+| Item                                                      | Status                                       |
+| --------------------------------------------------------- | -------------------------------------------- |
+| Transactions in development (needs a replica set)         | **TBD** — `database.md` §6                   |
+| Rate limiting on actions (signup, sign-in, handle checks) | **TBD** — none today (`auth.md` §7)          |
+| Idempotency keys for repeated submits                     | **TBD** — §7                                 |
+| Account deletion cascade                                  | **TBD** — `auth.md` §7                       |
+| Webhook signature verification                            | **TBD** — §8                                 |
+| Undo after delete                                         | **TBD** — confirm only today (`ui.md` §1.21) |
+| `NEXT_SERVER_ACTIONS_ENCRYPTION_KEY` handling             | **TBD** — depends on the deployment target   |

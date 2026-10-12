@@ -19,7 +19,6 @@ The URL map, the route groups behind it, and which file conventions each segment
 | `/signup`        | `(auth)/signup/page.tsx`           | **public**        | §2.3 onboarding   |
 | `/onboarding`    | `(onboarding)/onboarding/page.tsx` | **authenticated** | §2.3 username     |
 | `/dashboard`     | `(dashboard)/dashboard/page.tsx`   | **authenticated** | §2.4              |
-| `/add-links`     | `(dashboard)/add-links/page.tsx`   | **authenticated** | §2.4 Links tab    |
 | `/user/[handle]` | `user/[handle]/page.tsx`           | **public**        | §2.5 profile      |
 | `/api/auth/*`    | `api/auth/[...nextauth]/route.ts`  | public            | — (NextAuth)      |
 
@@ -33,12 +32,12 @@ Anything not in this table is **authenticated by default**. Adding a public rout
 
 Four groups, none of which appear in the URL — a folder in parentheses is omitted from the path. `(dashboard)/dashboard/page.tsx` serving `/dashboard` is not a typo: the group is an organisational wrapper, the segment inside it is the URL.
 
-| Group          | Holds                      | Exists because                                                                              |
-| -------------- | -------------------------- | ------------------------------------------------------------------------------------------- |
-| `(marketing)`  | the landing page           | keeps the public shell (NavBar, Footer) off the app and auth pages                          |
-| `(auth)`       | `/login`, `/signup`        | a centred, chrome-free shell, and one place to bounce already-signed-in users               |
-| `(onboarding)` | `/onboarding`              | a logo-only shell for the signed-in user who has no username yet; the proxy holds them here |
-| `(dashboard)`  | `/dashboard`, `/add-links` | one authenticated shell, and the unit the proxy protects wholesale                          |
+| Group          | Holds               | Exists because                                                                              |
+| -------------- | ------------------- | ------------------------------------------------------------------------------------------- |
+| `(marketing)`  | the landing page    | keeps the public shell (NavBar, Footer) off the app and auth pages                          |
+| `(auth)`       | `/login`, `/signup` | a centred, chrome-free shell, and one place to bounce already-signed-in users               |
+| `(onboarding)` | `/onboarding`       | a logo-only shell for the signed-in user who has no username yet; the proxy holds them here |
+| `(dashboard)`  | `/dashboard`        | one authenticated shell, and the unit the proxy protects wholesale                          |
 
 Three things that follow from groups not affecting the URL:
 
@@ -81,13 +80,14 @@ src/
           username-form.tsx
 
     (dashboard)/
-      layout.tsx                  # top bar + sidebar shell
+      layout.tsx                  # sidebar shell (drawer below lg)
+      _components/                # dashboard-sidebar, sidebar-drawer
       loading.tsx
       error.tsx
       dashboard/
-        page.tsx                  # /dashboard
-      add-links/
-        page.tsx                  # /add-links
+        page.tsx                  # /dashboard — the links list
+        _actions.ts               # createLink, updateLink, deleteLink
+        _components/              # add-link dialog, link rows, delete confirm
 
     user/
       [handle]/
@@ -202,12 +202,12 @@ Webhooks are also not a place for `revalidatePath` to be forgotten — an inboun
 
 This route map was specified after `ui.md`, `architecture.md`, and `auth.md`, and it contradicts all three in small ways. Flagging rather than silently resolving:
 
-| Conflict                                                                                                                                                                                                                                     | Resolution                                                                                                                                                                  |
-| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ui.md` §2.4 designs the dashboard as **one page with three sidebar tabs** (Links · Appearance · Analytics) plus a live preview pane. This map makes `/add-links` a **separate route**, which splits the add-link form away from that shell. | **TBD** — either `/add-links` is a route and `ui.md` §2.4's tab layout changes, or "add links" is the Links tab and this route disappears. Pick one before building either. |
-| `architecture.md` §2's tree shows `(dashboard)/editor/page.tsx`                                                                                                                                                                              | superseded by `/dashboard` + `/add-links`; that tree needs updating                                                                                                         |
-| `auth.md` §4 describes `(dashboard)/*` as "editor, appearance, analytics"                                                                                                                                                                    | superseded by this table; the access rule itself is unchanged                                                                                                               |
-| Are Appearance and Analytics routes (`/appearance`, `/analytics`) or tabs?                                                                                                                                                                   | **TBD** — same decision as the first row                                                                                                                                    |
+| Conflict                                                                                                                                                                                                                                                                                                                                                                                        | Resolution                                                    |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `ui.md` §2.4 designs the dashboard as **one page with three sidebar tabs** (Links · Appearance · Analytics) plus a live preview pane. This map makes `/add-links` a **separate route**, which splits the add-link form away from that shell. **Settled** — links are managed on `/dashboard` (add dialog, inline edit) and `/add-links` is gone. The sidebar tabs and preview aren't built yet. |
+| `architecture.md` §2's tree shows `(dashboard)/editor/page.tsx`                                                                                                                                                                                                                                                                                                                                 | superseded by `/dashboard`; that tree needs updating          |
+| `auth.md` §4 describes `(dashboard)/*` as "editor, appearance, analytics"                                                                                                                                                                                                                                                                                                                       | superseded by this table; the access rule itself is unchanged |
+| Are Appearance and Analytics routes (`/appearance`, `/analytics`) or tabs?                                                                                                                                                                                                                                                                                                                      | **TBD** — same decision as the first row                      |
 
 ---
 
@@ -215,7 +215,7 @@ This route map was specified after `ui.md`, `architecture.md`, and `auth.md`, an
 
 | Item                                                                   | Status                                                                |
 | ---------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Whether `/add-links`, Appearance, and Analytics are routes or tabs     | **TBD** (§7) — blocks the `(dashboard)` layout                        |
+| Whether Appearance and Analytics are routes or tabs                    | **TBD** (§7) — blocks the `(dashboard)` sidebar                       |
 | Whether the remaining onboarding steps (theme, quick links) get routes | **TBD** — only the username step exists, at `/onboarding`             |
 | `/templates` page (`ui.md` §2.2 mentions a standalone gallery)         | **TBD** — not in the map above                                        |
 | Whether the landing page needs `(marketing)/layout.tsx`                | **TBD** — only if a second marketing page lands                       |
