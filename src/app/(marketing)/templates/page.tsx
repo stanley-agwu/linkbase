@@ -6,26 +6,15 @@ import { Eyebrow } from "@/components/marketing/eyebrow";
 import { TemplateCard } from "@/components/marketing/template-card";
 import { TEMPLATE_FONT_VARIABLES } from "@/components/profile/template-fonts";
 import {
-  PROFILE_TEMPLATES,
-  TEMPLATE_CATEGORIES,
-} from "@/components/profile/templates";
+  templateCategoryFrom,
+  templateFilters,
+  templatesIn,
+} from "@/components/profile/template-filter";
 import { Chip } from "@/components/ui/chip";
 import { Footer } from "@/components/ui/footer";
 import { NavBar } from "@/components/ui/nav-bar";
-import type { TemplateCategory } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Templates" };
-
-/** A known category from `?category=`, or null (All) for anything else. */
-function categoryFrom(value: unknown): TemplateCategory | null {
-  return TEMPLATE_CATEGORIES.find((category) => category === value) ?? null;
-}
-
-function filterHref(category: TemplateCategory | null): string {
-  return category
-    ? `/templates?category=${encodeURIComponent(category)}`
-    : "/templates";
-}
 
 /**
  * The template gallery (ui.md §2.2, the "Template gallery" mockup): every
@@ -36,16 +25,9 @@ function filterHref(category: TemplateCategory | null): string {
 export default async function TemplatesPage({
   searchParams,
 }: PageProps<"/templates">) {
-  const selected = categoryFrom((await searchParams).category);
-  const templates = selected
-    ? PROFILE_TEMPLATES.filter((template) => template.category === selected)
-    : PROFILE_TEMPLATES;
-  const filters = [null, ...TEMPLATE_CATEGORIES].map((category) => ({
-    category,
-    label: category ?? "All",
-    href: filterHref(category),
-    selected: category === selected,
-  }));
+  const selected = templateCategoryFrom((await searchParams).category);
+  const templates = templatesIn(selected);
+  const filters = templateFilters(selected);
 
   return (
     <div className="flex min-h-screen flex-col">
