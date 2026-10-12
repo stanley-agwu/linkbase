@@ -1,4 +1,15 @@
-import type { ProfileTemplate } from "@/lib/types";
+import type { ProfileTemplate, TemplateCategory } from "@/lib/types";
+
+/** The gallery's filter order, after "All". */
+export const TEMPLATE_CATEGORIES = [
+  "Creators",
+  "Fashion",
+  "Fitness",
+  "Music",
+  "Small business",
+  "Sports",
+  "Travel",
+] as const satisfies readonly TemplateCategory[];
 
 // Ported from the design project's `_ref/components/profile/templates.js`.
 // Fonts point at the variables from ./template-fonts (and the root layout's
