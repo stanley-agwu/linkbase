@@ -54,6 +54,27 @@ export const emailSchema = z
   .max(EMAIL_MAX_LENGTH, "That email is too long.")
   .pipe(z.email({ error: "Enter a valid email address." }));
 
+export const LINK_TITLE_MAX_LENGTH = 100;
+// The practical ceiling browsers and crawlers handle.
+export const LINK_URL_MAX_LENGTH = 2048;
+
+/**
+ * A link destination. `http`/`https` only, with a real domain: a link is
+ * rendered as an `href` on a public page, and `z.url()` alone would accept
+ * `javascript:` (security.md §4).
+ */
+export const urlSchema = z
+  .string({ error: "Enter a link." })
+  .trim()
+  .max(LINK_URL_MAX_LENGTH, "That link is too long.")
+  .pipe(z.httpUrl({ error: "Enter a full link, starting with https://" }));
+
+// A junk id would otherwise reach Mongoose as a CastError. "Not found" is the
+// same message a missing or someone else's row gets (auth.md §5).
+export const objectIdSchema = z
+  .string({ error: "Not found" })
+  .regex(/^[a-f0-9]{24}$/i, "Not found");
+
 /** For choosing a password. Signing in only checks presence (see auth.ts). */
 export const passwordSchema = z
   .string({ error: "Enter a password." })
