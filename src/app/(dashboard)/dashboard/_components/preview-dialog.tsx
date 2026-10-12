@@ -2,11 +2,19 @@
 
 import { useRef } from "react";
 
+import { ButtonLink } from "@/components/ui/button";
+
+type PreviewDialogProps = {
+  /** The public page, opened in a new tab from the dialog. */
+  publicHref: string;
+  children: React.ReactNode;
+};
+
 /**
  * Below `lg` the preview pane is hidden; this floating button shows the same
  * server-rendered preview in a modal instead.
  */
-export function PreviewDialog({ children }: { children: React.ReactNode }) {
+export function PreviewDialog({ publicHref, children }: PreviewDialogProps) {
   const dialog = useRef<HTMLDialogElement>(null);
 
   function handleClick(event: React.MouseEvent<HTMLDialogElement>) {
@@ -30,6 +38,9 @@ export function PreviewDialog({ children }: { children: React.ReactNode }) {
       >
         <div className="flex flex-col items-center gap-4">
           {children}
+          <ButtonLink href={publicHref} target="_blank" fullWidth iconRight="→">
+            Open public page
+          </ButtonLink>
           <button
             type="button"
             onClick={() => dialog.current?.close()}
