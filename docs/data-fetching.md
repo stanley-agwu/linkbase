@@ -65,7 +65,7 @@ const [profile, links] = await Promise.all([
 
 ### 2.2 Public reads
 
-`/user/[handle]` is read by visitors with no session, so the scope is the handle — and that read is the **only** unscoped query in the app (`database.md` §5). It filters on `published: true`, links on `visible: true`, and projects only the fields the page renders.
+`/user/[handle]` is read by visitors with no session, so the scope is the handle — and that read is the **only** unscoped query in the app (`database.md` §5). A page is live once its owner has a username — there's no publish step — so it filters links on `visible: true` and projects only the fields the page renders.
 
 ```tsx
 // src/app/user/[handle]/page.tsx
@@ -89,7 +89,7 @@ export default async function UserPage({
 ```
 
 - **Validate the handle before the query**, with the same `handleSchema` the signup form uses (`errors-and-validation.md` §2.1). A malformed handle is a 404, not a query. It's also normalised to lowercase there, which matters for the cache tag (§3.3).
-- **Unpublished and nonexistent look the same** — both `null`, both `notFound()`. A different response would reveal which handles exist.
+- **Malformed and nonexistent look the same** — both `notFound()`, rendered by the segment's `not-found.tsx`, which doesn't say whether the name is taken.
 - **The public page doesn't read the session.** No `verifySession()`, no "Edit your page" button rendered from the server. Reading cookies makes the route dynamic per request, and keeping it session-free keeps it cacheable and identical for every visitor. Viewer-specific UI, if we ever want it, is a small Client Component.
 
 ---
@@ -130,21 +130,22 @@ async function readPublicPage(handle: string): Promise<PublicPage | null> {
   await connectToDatabase();
 
   // The handle is the owner's username (database.md §4): user first, then
-  // their profile. Only the _id leaves the user read.
-  const owner = await User.findOne({ username: handle }).select("_id").lean();
-  if (!owner) return null;
-
-  const profile = await Profile.findOne({ userId: owner._id, published: true })
-    .select("displayName bio themeId")
+  // their profile (optional — defaults apply) and visible links together.
+  const owner = await User.findOne({ username: handle })
+    .select("_id username")
     .lean();
-  if (!profile) return null;
+  if (!owner?.username) return null;
 
-  const links = await Link.find({ profileId: profile._id, visible: true })
-    .sort({ order: 1 })
-    .select("title url")
-    .lean();
+  const [profile, links] = await Promise.all([
+    Profile.findOne({ userId: owner._id }).select(PROFILE_FIELDS).lean(),
+    Link.find({ userId: owner._id, visible: true })
+      .select("title url")
+      .sort({ order: 1 })
+      .lean(),
+  ]);
 
-  return toPublicPage(profile, links); // ids → strings, dates → ISO strings
+  // ids → strings, so the cached JSON round-trips
+  return { username: owner.username, ...toProfileSettings(profile), links: … };
 }
 
 export const getPublicPage = cache((handle: string) =>
@@ -182,14 +183,12 @@ export const cacheTags = {
 
 ```ts
 // src/lib/db/queries/link.ts
-import { revalidateTag } from "next/cache";
-
 export async function updateLink(userId: string, input: UpdateLinkInput) {
   await connectToDatabase();
   const link = await Link.findOneAndUpdate(
     { _id: input.linkId, userId },
-    { title: input.title, url: input.url },
-    { new: true, runValidators: true },
+    { $set: { title: input.title, url: input.url } },
+    { returnDocument: "after", runValidators: true },
   ).lean();
   if (!link) return null;
 
@@ -197,13 +196,15 @@ export async function updateLink(userId: string, input: UpdateLinkInput) {
   return toLink(link);
 }
 
-// the owner's public page, by their current handle
-async function expirePublicProfile(userId: string) {
-  const profile = await Profile.findOne({ userId }).select("handle").lean();
-  if (profile)
-    revalidateTag(cacheTags.publicProfile(profile.handle), { expire: 0 });
+// src/lib/db/queries/public-page.ts — the owner's page, by their username
+export async function expirePublicProfile(userId: string) {
+  const owner = await User.findById(userId).select("username").lean();
+  if (owner?.username)
+    revalidateTag(cacheTags.publicProfile(owner.username), { expire: 0 });
 }
 ```
+
+`expirePublicProfile` isn't re-exported from `@/lib/db`: only write functions call it. Every link write (create, update, delete, show/hide, move), `updateAppearance` and `updateProfileDetails` call it; `setUsername` clears the new handle's tag directly.
 
 **Use `{ expire: 0 }`.** `revalidateTag` takes a second argument in Next 16 (the one-argument form is deprecated), and the recommended `"max"` serves the _stale_ page while it refreshes in the background. For the owner who just saved and clicked "View page", that looks like the save didn't work. `{ expire: 0 }` makes the next request wait for fresh data — the documented choice when the caller needs the data gone now and `updateTag` isn't available. (`updateTag` is the read-your-own-writes API, but its docs only cover tags set by `fetch` or `cacheTag`, not `unstable_cache`.) The cost is one blocking miss per edit, on a cheap query.
 
@@ -213,7 +214,6 @@ Which writes clear which tags:
 | ------------------------------------------------- | ------------------------------------------------------------- |
 | Create, update, delete, reorder, show/hide a link | `publicProfile(handle)`                                       |
 | Update display name, bio, theme, socials          | `publicProfile(handle)`                                       |
-| Publish or unpublish                              | `publicProfile(handle)`                                       |
 | Change handle                                     | `publicProfile(oldHandle)` **and** `publicProfile(newHandle)` |
 | Choose a username (onboarding)                    | `publicProfile(username)` — clears a cached "not found"       |
 | Delete account                                    | `publicProfile(handle)`                                       |
@@ -314,7 +314,7 @@ export async function checkUsernameAvailability(
 
 1. Is it in a Server Component (or `generateMetadata`), calling a `lib/db` function?
 2. Private: does the user id come from `requireUserId()`, and is it the query's first argument and in its filter?
-3. Public: is the handle validated with `handleSchema` first, and does the query filter on `published` / `visible` and project explicitly?
+3. Public: is the handle validated with `handleSchema` first, and does the query filter on `visible` and project explicitly?
 4. Does it return a plain `lib/types` shape, with string ids and dates?
 5. Cached? Then: is there a reason in §3.1, the scope is an argument, nothing request-specific is inside, and the tag comes from `cacheTags`?
 6. Does every write that changes its result clear its tag, with `{ expire: 0 }`, in the same `lib/db` function?

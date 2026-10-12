@@ -218,7 +218,7 @@ A URL is the one piece of user content rendered into an executable position, so 
 
 ### 4.4 Serving user content
 
-- **Project explicitly on the public read.** The public page gets `handle`, `displayName`, `bio`, `themeId`, and each link's `title` and `url` — never `userId`, never an email, never an unpublished profile (`database.md` §5). The result is cached and shared by every visitor, so a leaked field is public and persisted (`data-fetching.md` §3.2).
+- **Project explicitly on the public read.** The public page gets `username`, `displayName`, `bio`, `themeId`, `buttonShape`, `font`, and each visible link's `title` and `url` — never `userId`, never an email, never a hidden link (`database.md` §5). The result is cached and shared by every visitor, so a leaked field is public and persisted (`data-fetching.md` §3.2).
 - **Props are public.** Anything passed to a Client Component is in the RSC payload and readable in dev tools. Pass the fields the component renders, nothing more (`data-fetching.md` §5).
 - **Handles are a namespace.** Reserved words (`api`, `login`, `admin`, `app`) must not be claimable, or a profile shadows a route or impersonates the product. The list is **TBD** and belongs in `handleSchema` (`database.md` §4).
 - **Profile pages are user content on our origin**, which is why CSP matters more here than on the marketing pages: a payload that does get through runs with our origin's privileges.
