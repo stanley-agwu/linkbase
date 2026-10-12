@@ -8,6 +8,8 @@ import { logOut } from "@/lib/auth/actions";
 
 type UserMenuProps = {
   user: { name: string | null; email: string };
+  /** `sidebar` stretches the trigger and drops the menu below it, full width. */
+  placement?: "header" | "sidebar";
 };
 
 const ITEM_CLASS =
@@ -18,7 +20,8 @@ const ITEM_CLASS =
  * with the account, Dashboard, and Log out. Menu-button pattern: Escape and
  * outside clicks close it, arrow keys move between items.
  */
-export function UserMenu({ user }: UserMenuProps) {
+export function UserMenu({ user, placement = "header" }: UserMenuProps) {
+  const sidebar = placement === "sidebar";
   const pathname = usePathname();
   // Remembers the path the menu was opened on, so navigating closes it
   // without an effect.
@@ -103,15 +106,17 @@ export function UserMenu({ user }: UserMenuProps) {
         aria-controls={open ? menuId : undefined}
         aria-label={`Account menu for ${label}`}
         onClick={() => setOpenOn(open ? null : pathname)}
-        className="flex min-h-11 cursor-pointer items-center gap-2 rounded-full py-1 pr-3 pl-1 hover:bg-surface-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ember-500"
+        className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-full py-1 pr-3 pl-1 hover:bg-surface-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ember-500 ${sidebar ? "w-full" : ""}`}
       >
         <span
           aria-hidden="true"
-          className="flex size-9 items-center justify-center rounded-full bg-action-dark font-display text-md font-bold text-on-inverse"
+          className={`flex size-9 items-center justify-center rounded-full font-display text-md font-bold ${sidebar ? "bg-action-primary text-on-accent" : "bg-action-dark text-on-inverse"}`}
         >
           {initial}
         </span>
-        <span className="max-w-40 truncate text-nav font-medium text-strong max-[639px]:hidden">
+        <span
+          className={`truncate text-nav font-medium text-strong ${sidebar ? "flex-1 text-left" : "max-w-40 max-[639px]:hidden"}`}
+        >
           {label}
         </span>
         <span aria-hidden="true" className="text-xs text-muted">
@@ -126,7 +131,7 @@ export function UserMenu({ user }: UserMenuProps) {
           role="menu"
           aria-label="Account"
           onKeyDown={handleMenuKeyDown}
-          className="absolute top-full right-0 z-30 mt-2 flex w-64 flex-col gap-1 rounded-input border border-subtle bg-surface-card p-2 shadow-nav"
+          className={`absolute top-full z-30 mt-2 flex flex-col gap-1 rounded-input border border-subtle bg-surface-card p-2 shadow-nav ${sidebar ? "inset-x-0" : "right-0 w-64"}`}
         >
           <div className="border-b border-subtle px-3 pt-1 pb-3">
             {user.name ? (
