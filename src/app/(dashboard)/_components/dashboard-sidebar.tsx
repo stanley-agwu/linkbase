@@ -1,14 +1,14 @@
-import Link from "next/link";
-
 import { UserMenu } from "@/components/auth/user-menu";
 import { SOON_CLASS, SoonTag } from "@/components/ui/soon-tag";
 import { verifySession } from "@/lib/auth";
 import { logOut } from "@/lib/auth/actions";
 
 import { SidebarDrawer } from "./sidebar-drawer";
+import { SidebarNav } from "./sidebar-nav";
 
-// In the mockup's order. None has a page yet, so each renders disabled.
-const SECTIONS = ["Appearance", "Shop", "Earnings", "Audience", "Analytics"];
+// In the mockup's order, after My linkbase and Appearance. None has a page
+// yet, so each renders disabled.
+const SECTIONS = ["Shop", "Earnings", "Audience", "Analytics"];
 const TOOLS = [
   "Social planner",
   "Instagram auto-reply",
@@ -37,15 +37,7 @@ export async function DashboardSidebar() {
 
       <nav aria-label="Dashboard" className="mt-4 flex flex-1 flex-col">
         <ul className="m-0 flex list-none flex-col gap-1 p-0">
-          <li>
-            <Link
-              href="/dashboard"
-              aria-current="page"
-              className={`${ITEM} bg-surface-soft font-semibold text-strong hover:text-strong`}
-            >
-              My linkbase
-            </Link>
-          </li>
+          <SidebarNav itemClassName={ITEM} />
           {SECTIONS.map((label) => (
             <SoonItem key={label} label={label} />
           ))}

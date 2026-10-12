@@ -1,39 +1,44 @@
-import { ProfilePhone } from "@/components/profile/profile-phone";
-import { PROFILE_TEMPLATES } from "@/components/profile/templates";
-import type { DashboardLink } from "@/lib/types";
+import Link from "next/link";
 
-// Kiln is closest to the mockup. Replaced by the user's own theme once
-// Appearance exists.
-const PREVIEW_THEME = PROFILE_TEMPLATES[0];
+import { ProfilePhone } from "@/components/profile/profile-phone";
+import { resolveTheme } from "@/components/profile/resolve-theme";
+import { TEMPLATE_FONT_VARIABLES } from "@/components/profile/template-fonts";
+import type { DashboardLink, ProfileSettings } from "@/lib/types";
 
 type LivePreviewProps = {
   username: string;
+  profile: ProfileSettings;
   links: DashboardLink[];
 };
 
 /**
- * What visitors will see: the visible links, in order. Rendered on the
- * server from the same read as the list, so every action's refresh() updates
- * both.
+ * What visitors will see: the owner's theme, name and bio, and the visible
+ * links in order. Rendered on the server from the same reads as the pages,
+ * so every action's refresh() updates it.
  */
-export function LivePreview({ username, links }: LivePreviewProps) {
+export function LivePreview({ username, profile, links }: LivePreviewProps) {
   return (
-    <div className="flex w-full max-w-[290px] flex-col items-center gap-4">
+    <div
+      className={`flex w-full max-w-[290px] flex-col items-center gap-4 ${TEMPLATE_FONT_VARIABLES}`}
+    >
       <p className="m-0 font-mono text-xs tracking-widest text-muted uppercase">
         Live preview
       </p>
       <ProfilePhone
         framed
         social={false}
-        theme={PREVIEW_THEME}
-        name={username}
-        bio=""
+        theme={resolveTheme(profile)}
+        name={profile.displayName ?? `@${username}`}
+        bio={profile.bio ?? ""}
         links={links.filter((link) => link.visible).map((link) => link.title)}
       />
-      {/* Plain text until /user/[handle] exists. */}
-      <p className="m-0 font-mono text-sm text-strong">
-        linkbase.me/{username}
-      </p>
+      <Link
+        href={`/user/${username}`}
+        target="_blank"
+        className="font-mono text-sm text-strong"
+      >
+        /user/{username} <span aria-hidden="true">→</span>
+      </Link>
     </div>
   );
 }

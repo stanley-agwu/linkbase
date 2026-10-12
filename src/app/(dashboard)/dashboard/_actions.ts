@@ -11,6 +11,7 @@ import {
   moveLink as moveLinkRow,
   setLinkVisibility as setLinkVisibilityRow,
   updateLink as updateLinkRow,
+  updateProfileDetails,
 } from "@/lib/db";
 import type { DashboardLink } from "@/lib/types";
 import {
@@ -26,14 +27,16 @@ import {
   setLinkVisibilitySchema,
   type UpdateLinkInput,
   updateLinkSchema,
+  type UpdateProfileInput,
+  updateProfileSchema,
   validationError,
 } from "@/lib/validation";
 
 const MINUTE_MS = 60 * 1000;
 
-// Private reads aren't cached (data-fetching.md §3.1), so each action only
-// re-renders the dashboard with refresh(). No public-profile tag to clear
-// until /user/[handle] exists.
+// The lib/db writes clear the public page's cache tag themselves
+// (data-fetching.md §3.4); each action re-renders the dashboard with
+// refresh(), since private reads aren't cached.
 
 export async function createLink(
   _previous: ActionResult<CreateLinkInput, DashboardLink>,
@@ -93,6 +96,21 @@ export async function deleteLink(
 
   const deleted = await deleteLinkRow(userId, parsed.data.linkId);
   if (!deleted) return formError("Not found", formData);
+
+  refresh();
+  return { status: "success", data: null };
+}
+
+export async function updateProfile(
+  _previous: ActionResult<UpdateProfileInput>,
+  formData: FormData,
+): Promise<ActionResult<UpdateProfileInput>> {
+  const userId = await requireUserId();
+
+  const parsed = updateProfileSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return validationError(parsed.error, formData);
+
+  await updateProfileDetails(userId, parsed.data);
 
   refresh();
   return { status: "success", data: null };
