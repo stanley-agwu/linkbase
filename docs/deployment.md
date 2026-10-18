@@ -64,12 +64,12 @@ node:24.22.0-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bd
 | --------- | --------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | `deps`    | the image | `npm ci` against the lockfile only, so the layer is cached until `package-lock.json` changes                                 |
 | `check`   | `deps`    | format, `next typegen`, lint, typecheck, unit tests, production `npm audit` — the same list as the `checks` job              |
-| `builder` | `deps`    | `next build` with `NEXT_OUTPUT=standalone` (read by `next.config.ts`) and a placeholder `MONGODB_URI`                        |
+| `builder` | `deps`    | `next build` with `NEXT_OUTPUT=standalone` (read by `next.config.ts`) — no secrets                                           |
 | `runner`  | the image | copies only `.next/standalone`, `.next/static`, and `public`; runs `node server.js` as the `node` user, with a `HEALTHCHECK` |
 
 Decisions worth knowing:
 
-- **The build needs `MONGODB_URI` but never connects.** `lib/db/connect.ts` throws at import if it's unset, and `next build` imports it while collecting page data. Verified: a build with an unreachable `mongodb://build-placeholder.invalid…` URI succeeds. So `builder` sets that placeholder inline on the `RUN` — no real credential is ever in a layer, and the `runner` stage doesn't inherit it.
+- **The build needs no secrets.** `lib/db/connect.ts` reads `MONGODB_URI` on first connect, not at import, and the build never connects. The startup check lives in `register()` in `src/instrumentation.ts`, which runs when the server starts and never during `next build`. So no credential is ever in a layer, and a container started without `MONGODB_URI` refuses to serve (every request 500s, with `MONGODB_URI is not set` in the log). Both verified locally.
 - **`output: "standalone"` is opt-in.** `next.config.ts` sets it only when `NEXT_OUTPUT=standalone`, so Vercel builds are unchanged.
 - **Code is root-owned; the app runs as `node`.** The server can't modify its own files. Only `.next/cache` (Next's on-disk cache for `unstable_cache`) is writable.
 - **`.dockerignore` excludes `.env*`** (except `.env.example`), `.git`, `node_modules`, `.next`, and `.vercel`. Without the `.env*` line, `COPY . .` would bake `.env.local` — real credentials — into a layer.
@@ -239,10 +239,10 @@ The pattern: **runtime values live in exactly one place per environment** — `.
 ### 6.2 Vercel
 
 - **Scope each variable to one environment.** Preview and Production get separate values for `MONGODB_URI` and `AUTH_SECRET`. Nothing goes in "All Environments" unless it's identical and non-secret.
-- **Mark production secrets Sensitive.** After that their values can't be read back from the dashboard or API, only replaced.
+- **Sensitive is the default, and builds don't see it.** Vercel creates Preview and Production variables as Sensitive: unreadable after saving, and available at runtime and inside Vercel's own build container — but **not** to `vercel pull`, so our CI build gets them empty. That's fine because the build reads no secrets (§2.3). Keep it that way: a module that reads a secret at import time breaks every deploy. The first preview run failed for exactly this reason, before `connect.ts` moved its check into `register()`.
 - **A change takes effect on the next deploy.** Each deployment snapshots its variables when it's built. Rotating a secret means changing it in Vercel, then re-running the latest `production` workflow run. A rollback (§9) restores the old deployment **with its old variables**.
 - **`vercel pull` writes values to `.vercel/.env.<environment>.local`** in the CI workspace. The directory is gitignored, never cached or uploaded as an artifact, and never printed. Don't add a debug step that `cat`s it.
-- **`NEXT_PUBLIC_` is unused.** If that changes, remember those values are inlined at build time and public (`security.md` §1.3).
+- **`NEXT_PUBLIC_` is unused.** If that changes: those values are inlined at build time and public (`security.md` §1.3), and because CI builds can't read Sensitive values, a `NEXT_PUBLIC_` variable must be created non-Sensitive or it'll be built in empty.
 
 ### 6.3 GitHub
 
@@ -402,7 +402,7 @@ Then, in the project's settings:
 
 1. **Environment Variables:**
    - Preview: `MONGODB_URI` (the `linkbase-preview` URI) and `AUTH_SECRET` (`openssl rand -base64 32`).
-   - Production: `MONGODB_URI` (the `linkbase` URI on the production cluster) and its own `AUTH_SECRET`, both marked **Sensitive**.
+   - Production: `MONGODB_URI` (the `linkbase` URI on the production cluster) and its own `AUTH_SECRET`. Leave both **Sensitive** (the default).
    - Don't set `AUTH_URL`.
 2. **Deployment Protection:** Vercel Authentication on, Standard Protection.
 3. **Node.js version: 24.x** (it should follow `engines`; confirm it does).

@@ -57,14 +57,17 @@ AUTH_GOOGLE_SECRET=
 
 - **Server-side only.** `process.env.X` is read in `lib/db`, `lib/auth`, Server Components, and Server Actions. All three of those `lib` modules import `"server-only"`, so a client import is a build error (`architecture.md` §1).
 - **`NEXT_PUBLIC_` makes a value public, permanently.** The prefix inlines the value into the browser bundle at build time. It is for things that are genuinely public — a site URL, an analytics id. A secret with this prefix is published to every visitor, and rotating it means a rebuild. Nothing in this app needs the prefix today.
-- **Fail loudly at startup, not at the first request.** A missing required variable throws immediately:
+- **Fail loudly at startup, not at the first request — and not at build time.** Required variables are checked in `register()` in `src/instrumentation.ts`, which runs once when a server instance starts and never during `next build`:
 
   ```ts
-  const MONGODB_URI = process.env.MONGODB_URI;
-  if (!MONGODB_URI) throw new Error("MONGODB_URI is not set");
+  export function register(): void {
+    if (process.env.NEXT_RUNTIME === "nodejs" && !process.env.MONGODB_URI) {
+      throw new Error("MONGODB_URI is not set");
+    }
+  }
   ```
 
-  That message is safe — it names the variable, never its value.
+  That message is safe — it names the variable, never its value. Don't check at module import instead: `next build` imports server modules, so an import-time check makes the build need the secret, and Vercel doesn't expose Sensitive values to builds outside its own build container (`deployment.md` §6.2).
 
 - **Never log or return a secret.** Not in an error message, not in a log line, not in an action result (`errors-and-validation.md` §6.3 and §7). The environment is on the "never include" side of that table.
 - **`.env*` files are expanded by Next**, so `$VAR` inside one references another variable. A literal `$` in a password has to be escaped.
