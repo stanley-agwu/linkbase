@@ -49,7 +49,9 @@ describe("updateAppearanceSchema", () => {
   });
 
   it("rejects a button shape that isn't offered", () => {
-    const { error } = updateAppearanceSchema.safeParse({ buttonShape: "round" });
+    const { error } = updateAppearanceSchema.safeParse({
+      buttonShape: "round",
+    });
     expect(error && z.flattenError(error).fieldErrors).toEqual({
       buttonShape: ["Pick a button shape."],
     });
@@ -95,9 +97,10 @@ describe("updateProfileSchema", () => {
   });
 
   it("accepts empty fields, which clear the saved values", () => {
-    expect(updateProfileSchema.parse({ displayName: "  ", bio: "" })).toEqual(
-      { displayName: "", bio: "" },
-    );
+    expect(updateProfileSchema.parse({ displayName: "  ", bio: "" })).toEqual({
+      displayName: "",
+      bio: "",
+    });
   });
 
   it("accepts a display name and bio at their maximum lengths", () => {

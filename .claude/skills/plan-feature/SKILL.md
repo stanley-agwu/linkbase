@@ -21,15 +21,15 @@ Always read:
 
 Then read every feature-area doc the feature touches:
 
-| The feature involves… | Read |
-|---|---|
-| a new page, route, layout, or endpoint | `docs/routing.md` |
-| sign-in, sessions, protected routes, anything reading a user id | `docs/auth.md` |
-| reading data, caching, cache tags | `docs/data-fetching.md` |
-| creating, updating, or deleting data | `docs/data-mutations.md` |
-| forms, input validation, error states, `error.tsx` | `docs/errors-and-validation.md` |
-| env vars, headers, rate limiting, rendering user-typed content | `docs/security.md` |
-| components or page layout | `docs/ui.md` and `docs/design-system.md` |
+| The feature involves…                                           | Read                                     |
+| --------------------------------------------------------------- | ---------------------------------------- |
+| a new page, route, layout, or endpoint                          | `docs/routing.md`                        |
+| sign-in, sessions, protected routes, anything reading a user id | `docs/auth.md`                           |
+| reading data, caching, cache tags                               | `docs/data-fetching.md`                  |
+| creating, updating, or deleting data                            | `docs/data-mutations.md`                 |
+| forms, input validation, error states, `error.tsx`              | `docs/errors-and-validation.md`          |
+| env vars, headers, rate limiting, rendering user-typed content  | `docs/security.md`                       |
+| components or page layout                                       | `docs/ui.md` and `docs/design-system.md` |
 
 If a doc lists an open conflict that affects this feature (e.g. `errors-and-validation.md` §8, `routing.md` §7), raise it in the plan rather than silently picking a side.
 
@@ -45,20 +45,25 @@ Keep it short — a reviewer should read it in a couple of minutes. Use this sha
 # <Feature name>
 
 ## Goal
+
 One or two sentences: what the user can do when this ships.
 
 ## Docs followed
+
 - `docs/<file>.md` — the convention from it this plan relies on (one line each)
 
 ## Files
-| Path | New / Changed | Purpose |
-|---|---|---|
-| `src/...` | New | ... |
+
+| Path      | New / Changed | Purpose |
+| --------- | ------------- | ------- |
+| `src/...` | New           | ...     |
 
 ## Approach
+
 A few bullets on the non-obvious decisions: data shape, which Server Actions, what's cached and which tags are revalidated, where auth is enforced. Note any doc conflict or open question here.
 
 ## QA Scenarios
+
 1. **Happy path** — <what the user does> → <what should happen>
 2. **Auth boundary** — <what the user does> → <what should happen>
 3. **Validation** — <what the user does> → <what should happen>
