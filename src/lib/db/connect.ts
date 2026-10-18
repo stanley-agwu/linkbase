@@ -1,10 +1,10 @@
 import "server-only";
 import mongoose, { type Mongoose } from "mongoose";
 
-// Read and checked once at import, so a missing variable fails at startup.
-// The message names the variable, never its value (security.md §1.3).
-const MONGODB_URI: string = readMongoUri();
-
+// Read on first connect, not at import, so `next build` needs no secret
+// (deployment.md §6.2). A missing variable still fails at server startup:
+// instrumentation.ts checks it in register(). The message names the
+// variable, never its value (security.md §1.3).
 function readMongoUri(): string {
   const uri = process.env.MONGODB_URI;
   if (!uri) throw new Error("MONGODB_URI is not set");
@@ -25,7 +25,7 @@ const cached = (globalForMongoose._mongoose ??= { conn: null, promise: null });
 export async function connectToDatabase(): Promise<Mongoose> {
   if (cached.conn) return cached.conn;
 
-  cached.promise ??= mongoose.connect(MONGODB_URI, {
+  cached.promise ??= mongoose.connect(readMongoUri(), {
     maxPoolSize: 10,
     serverSelectionTimeoutMS: 5_000,
     bufferCommands: false,
