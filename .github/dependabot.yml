@@ -1,0 +1,27 @@
+# Dependency and action updates arrive as PRs and run the same checks as any
+# other change (deployment.md §8.1). The Docker base image is bumped by hand:
+# it's pinned in two places that must move together (§2.2).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      actions:
+        patterns: ["*"]

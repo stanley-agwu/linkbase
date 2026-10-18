@@ -1,0 +1,267 @@
+# CI/CD for Linkbase — docs/deployment.md is the spec for every line here.
+#
+#   pull request → checks + docker → preview  (Vercel Preview, URL on the PR)
+#   push to main → checks + docker → production (Vercel Production) → smoke
+#
+# Nothing reaches Vercel without passing checks and docker on that commit, and
+# vercel.json turns off Vercel's own Git deploys so this is the only path.
+name: CI/CD
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# Least privilege by default; jobs widen it only where they must (§8.3).
+permissions:
+  contents: read
+
+# One run per PR — a new push cancels the old one. Runs on main are never
+# cancelled mid-flight; a newer push only replaces one still waiting.
+concurrency:
+  group: ci-cd-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  NEXT_TELEMETRY_DISABLED: 1
+  VERCEL_CLI: vercel@64.5.0
+  # Read from Actions variables or secrets, whichever holds them (§6.3).
+  VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID || secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID || secrets.VERCEL_PROJECT_ID }}
+
+jobs:
+  checks:
+    name: checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    container:
+      # Same image as the Dockerfile's NODE_IMAGE (§2.2) — enforced below.
+      image: node:24.22.0-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Dockerfile and workflow pin the same image
+        run: |
+          want="$(sed -n 's/^ARG NODE_IMAGE=//p' Dockerfile)"
+          got="$(sed -nE 's/^[[:space:]]*image: (node:[^[:space:]]+).*/\1/p' .github/workflows/ci-cd.yml | sort -u)"
+          if [ "$want" != "$got" ]; then
+            echo "::error::Dockerfile NODE_IMAGE and the workflow container images differ"
+            printf 'Dockerfile: %s\nworkflow:\n%s\n' "$want" "$got"
+            exit 1
+          fi
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.npm
+          key: npm-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - run: npm ci
+      - run: npm run format:check
+      - run: npx next typegen
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  docker:
+    name: docker
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build the runtime image
+        run: docker build --target runner --tag linkbase:ci .
+
+      - name: Image runs as a non-root user
+        run: test "$(docker inspect --format '{{.Config.User}}' linkbase:ci)" = node
+
+      # No database here: the placeholder URI proves the pages that don't
+      # query it render, and that nothing connects at startup.
+      - name: Container serves the app
+        run: |
+          docker run --detach --init --name linkbase --publish 3000:3000 \
+            --env MONGODB_URI=mongodb://smoke-placeholder.invalid:27017/linkbase \
+            --env AUTH_SECRET="$(openssl rand -base64 32)" \
+            --env AUTH_URL=http://127.0.0.1:3000 \
+            linkbase:ci
+          for _ in $(seq 1 30); do
+            curl --silent --output /dev/null http://127.0.0.1:3000/ && break
+            sleep 1
+          done
+          for path in / /login /signup /templates /api/auth/session; do
+            curl --fail --silent --show-error --output /dev/null "http://127.0.0.1:3000$path"
+          done
+          code="$(curl --silent --output /dev/null --write-out '%{http_code}' http://127.0.0.1:3000/dashboard)"
+          if [ "$code" != 307 ]; then
+            echo "::error::/dashboard returned $code signed out; expected a 307 to /login"
+            exit 1
+          fi
+          if docker logs linkbase 2>&1 | grep -E '"level":"error"|\[auth\]\[error\]'; then
+            echo "::error::the server logged errors"
+            exit 1
+          fi
+
+      - name: Server logs
+        if: always()
+        run: docker logs linkbase 2>&1 || true
+
+  preview:
+    name: preview
+    needs: [checks, docker]
+    # Fork PRs and Dependabot PRs get no Actions secrets, so they get checks
+    # but no preview (§8.2).
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container:
+      image: node:24.22.0-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: preview
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      # Attacker-controlled: only ever read as a quoted shell variable (§8.2).
+      HEAD_REF: ${{ github.head_ref }}
+    steps:
+      - name: Vercel credentials are configured
+        run: |
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not set — see docs/deployment.md §11"
+              exit 1
+            fi
+          done
+
+      # git lets the Vercel CLI attach the commit to the deployment.
+      - name: Install git
+        run: apt-get update && apt-get install --yes --no-install-recommends git
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.npm
+            .next/cache
+          key: build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**') }}
+          restore-keys: |
+            build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+
+      - run: npm install --global "$VERCEL_CLI"
+      - name: Pull Preview settings and variables
+        run: vercel pull --yes --environment=preview --git-branch="$HEAD_REF" --token="$VERCEL_TOKEN"
+      # Runs vercel.json's installCommand (npm ci), then npm run build.
+      - name: Build
+        run: vercel build --token="$VERCEL_TOKEN"
+      - name: Deploy
+        id: deploy
+        run: |
+          url="$(vercel deploy --prebuilt --token="$VERCEL_TOKEN")"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Preview: $url" >> "$GITHUB_STEP_SUMMARY"
+
+  production:
+    name: production
+    needs: [checks, docker]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    container:
+      image: node:24.22.0-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: production
+      url: ${{ vars.PRODUCTION_URL }}
+    # Production deploys run one at a time and are never cancelled halfway.
+    concurrency:
+      group: production
+      cancel-in-progress: false
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+    steps:
+      - name: Vercel credentials are configured
+        run: |
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not set — see docs/deployment.md §11"
+              exit 1
+            fi
+          done
+
+      - name: Install git
+        run: apt-get update && apt-get install --yes --no-install-recommends git
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.npm
+            .next/cache
+          key: build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('src/**') }}
+          restore-keys: |
+            build-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+
+      - run: npm install --global "$VERCEL_CLI"
+      - name: Pull Production settings and variables
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Build
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+      - name: Deploy
+        run: |
+          url="$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")"
+          echo "Production deployment: $url" >> "$GITHUB_STEP_SUMMARY"
+
+  smoke:
+    name: smoke
+    needs: production
+    runs-on: ubuntu-24.04 # no container: needs only curl
+    timeout-minutes: 5
+    env:
+      BASE_URL: ${{ vars.PRODUCTION_URL }}
+    steps:
+      - name: Production domain is configured
+        run: |
+          if [ -z "$BASE_URL" ]; then
+            echo "::error::PRODUCTION_URL is not set — see docs/deployment.md §11"
+            exit 1
+          fi
+
+      - name: Public pages render
+        run: |
+          for path in / /login /signup /templates; do
+            curl --fail --silent --show-error --output /dev/null \
+              --retry 5 --retry-delay 5 --retry-all-errors "$BASE_URL$path"
+          done
+
+      - name: Dashboard is still default-deny
+        run: |
+          read -r code location < <(curl --silent --output /dev/null \
+            --write-out '%{http_code} %{redirect_url}' "$BASE_URL/dashboard")
+          if [ "$code" != 307 ] || [[ "$location" != */login* ]]; then
+            echo "::error::/dashboard returned $code -> $location signed out; expected a 307 to /login"
+            exit 1
+          fi
