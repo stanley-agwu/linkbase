@@ -149,9 +149,10 @@ jobs:
             fi
           done
 
-      # git lets the Vercel CLI attach the commit to the deployment.
+      # git lets the Vercel CLI attach the commit to the deployment; the slim
+      # image has no CA bundle, so ca-certificates is needed for HTTPS fetches.
       - name: Install git
-        run: apt-get update && apt-get install --yes --no-install-recommends git
+        run: apt-get update && apt-get install --yes --no-install-recommends git ca-certificates
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -210,7 +211,7 @@ jobs:
           done
 
       - name: Install git
-        run: apt-get update && apt-get install --yes --no-install-recommends git
+        run: apt-get update && apt-get install --yes --no-install-recommends git ca-certificates
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
