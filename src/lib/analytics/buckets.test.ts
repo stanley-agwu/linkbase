@@ -23,9 +23,7 @@ describe("utcDayKey", () => {
 
   it("uses the UTC day, not the local one, for a late-evening click", () => {
     // 23:30 in New York is already the next day in UTC.
-    expect(utcDayKey(new Date("2026-10-14T23:30:00-04:00"))).toBe(
-      "2026-10-15",
-    );
+    expect(utcDayKey(new Date("2026-10-14T23:30:00-04:00"))).toBe("2026-10-15");
   });
 });
 
@@ -173,10 +171,7 @@ describe("peakBucket", () => {
   });
 
   it("returns the earliest bucket on a tie", () => {
-    const peak = peakBucket([
-      bucket("2026-10-12", 5),
-      bucket("2026-10-13", 5),
-    ]);
+    const peak = peakBucket([bucket("2026-10-12", 5), bucket("2026-10-13", 5)]);
     expect(peak?.start).toBe("2026-10-12");
   });
 

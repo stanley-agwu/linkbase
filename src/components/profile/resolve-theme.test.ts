@@ -16,7 +16,11 @@ describe("resolveTheme", () => {
   it("uses the template's own colours, radius and font by default", () => {
     const hem = template("hem");
     expect(
-      resolveTheme({ themeId: "hem", buttonShape: "template", font: "template" }),
+      resolveTheme({
+        themeId: "hem",
+        buttonShape: "template",
+        font: "template",
+      }),
     ).toEqual({
       bg: hem.bg,
       fg: hem.fg,
