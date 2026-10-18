@@ -260,8 +260,10 @@ jobs:
 
       - name: Dashboard is still default-deny
         run: |
+          # The trailing \n matters: without it `read` hits EOF, returns 1, and
+          # bash -e ends the step before the check below runs.
           read -r code location < <(curl --silent --output /dev/null \
-            --write-out '%{http_code} %{redirect_url}' "$BASE_URL/dashboard")
+            --write-out '%{http_code} %{redirect_url}\n' "$BASE_URL/dashboard")
           if [ "$code" != 307 ] || [[ "$location" != */login* ]]; then
             echo "::error::/dashboard returned $code -> $location signed out; expected a 307 to /login"
             exit 1
