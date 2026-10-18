@@ -28,12 +28,9 @@ RUN npm run format:check \
 
 FROM deps AS builder
 COPY . .
-# lib/db/connect.ts requires MONGODB_URI at import, but the build never
-# connects — an unreachable placeholder satisfies it without putting a
-# credential in any layer. Real values arrive at `docker run`.
-RUN NEXT_OUTPUT=standalone \
-    MONGODB_URI=mongodb://build-placeholder.invalid:27017/linkbase \
-    npm run build
+# The build needs no secrets (deployment.md §2.3); real values arrive at
+# `docker run`, and register() in instrumentation.ts refuses to start without them.
+RUN NEXT_OUTPUT=standalone npm run build
 
 FROM ${NODE_IMAGE} AS runner
 WORKDIR /app
