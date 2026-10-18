@@ -10,6 +10,7 @@ import { SidebarNav } from "./sidebar-nav";
 // disabled), then Analytics.
 const PAGES = [
   { label: "My linkbase", href: "/dashboard" },
+  { label: "Home", href: "/" },
   { label: "Appearance", href: "/dashboard/appearance" },
 ];
 const SECTIONS = ["Shop", "Earnings", "Audience"];
