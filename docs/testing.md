@@ -31,7 +31,7 @@ Code that is pure: same input, same output, no I/O, no framework runtime. Today 
 ### 2.2 What doesn't
 
 - **Anything that imports `server-only`** — `lib/db`, `lib/auth`, `lib/logger`. `server-only` throws when it's imported outside a Server Component build, so those modules can't load in Vitest. That's intentional: they're QA's job.
-- **Anything that imports `@/lib/db`**, even indirectly. `lib/db/connect.ts` reads `MONGODB_URI` at import time and throws if it's missing (`database.md` §2).
+- **Anything that imports `@/lib/db`**, even indirectly — it imports `server-only` (above) and needs a real database (`database.md` §2).
 - **Components and pages.** No React Testing Library. A component is checked by QA in a real browser.
 
 If a pure function is tangled up with a server-only module, extract the pure part into its own file and test that. Don't add a mock.
