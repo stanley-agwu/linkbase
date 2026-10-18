@@ -376,7 +376,7 @@ Error UI is `error.tsx`, which in this Next major receives `{ error: Error & { d
 | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | Stricter compiler flags (`noUncheckedIndexedAccess` first)                | **TBD** (§2)                                                                          |
 | The rest of `recommendedTypeChecked` (`no-unsafe-assignment` and friends) | **TBD** — `projectService` is on, so it's a one-line opt-in once there's code to lint |
-| Pre-commit hook / CI lint+typecheck job                                   | **TBD** — the scripts exist, nothing runs them automatically                          |
+| Pre-commit hook                                                           | **TBD** — CI runs format, lint, typecheck, and tests on every PR (`deployment.md` §3) |
 | Test runner, and the conventions that come with it                        | **TBD** — none configured (`CLAUDE.md`)                                               |
 | Logging backend behind `lib/logger.ts`                                    | **TBD** — the seam is decided (`errors-and-validation.md` §6), the backend isn't      |
 | Whether Prettier should keep formatting `docs/*.md`                       | **TBD** — it does today; `*.md` in `.prettierignore` would stop it (§3)               |

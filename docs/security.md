@@ -252,17 +252,17 @@ Changing headers or limits:
 
 ## 6. Not decided yet
 
-| Item                                                              | Status                                                        |
-| ----------------------------------------------------------------- | ------------------------------------------------------------- |
-| CSP: nonce-based (dynamic) vs. static, and the cached public page | **TBD** — §2.2, blocks both CSP and the public-page cache     |
-| CSP violation reporting destination                               | **TBD** — §2.2                                                |
-| How profile theme colours are applied without `'unsafe-inline'`   | **TBD** — §2.2                                                |
-| Rate limiter: storage and library                                 | **Settled** — MongoDB TTL counters, no library (§3)           |
-| Maximum links per profile                                         | **TBD** — §3                                                  |
-| Bot filtering on click recording                                  | **TBD** — `database.md` §5                                    |
-| Reserved-handle list                                              | **TBD** — `database.md` §4                                    |
-| Link preview / favicon fetching, and its SSRF allowlist           | **TBD** — §4.2                                                |
-| Abuse reporting and takedown                                      | **TBD** — §4.4                                                |
-| Secret scanning on push                                           | **TBD** — §1.4                                                |
-| Dependency audit in CI (`npm audit`, Dependabot)                  | **TBD** — nothing runs today (`coding-standards.md` §9)       |
-| `experimental.taint` for extra server-data protection             | **TBD** — the `"server-only"` boundary is the primary defence |
+| Item                                                              | Status                                                               |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------- |
+| CSP: nonce-based (dynamic) vs. static, and the cached public page | **TBD** — §2.2, blocks both CSP and the public-page cache            |
+| CSP violation reporting destination                               | **TBD** — §2.2                                                       |
+| How profile theme colours are applied without `'unsafe-inline'`   | **TBD** — §2.2                                                       |
+| Rate limiter: storage and library                                 | **Settled** — MongoDB TTL counters, no library (§3)                  |
+| Maximum links per profile                                         | **TBD** — §3                                                         |
+| Bot filtering on click recording                                  | **TBD** — `database.md` §5                                           |
+| Reserved-handle list                                              | **TBD** — `database.md` §4                                           |
+| Link preview / favicon fetching, and its SSRF allowlist           | **TBD** — §4.2                                                       |
+| Abuse reporting and takedown                                      | **TBD** — §4.4                                                       |
+| Secret scanning on push                                           | **Settled** — push protection on (`deployment.md` §8.4, once set up) |
+| Dependency audit in CI (`npm audit`, Dependabot)                  | **Settled** — both run (`deployment.md` §8.1)                        |
+| `experimental.taint` for extra server-data protection             | **TBD** — the `"server-only"` boundary is the primary defence        |
